@@ -2,17 +2,15 @@
 
 set -euo pipefail
 
-echo "Setting up OCI CLI authentication and kubeconfig..."
 export OCI_CLI_AUTH=instance_principal
 oci ce cluster create-kubeconfig --cluster-id ${CLUSTER_ID}
 
 timeout=420 # Maximum timeout in seconds
 start_time=$(date +%s)
 
-echo "Starting to monitor Helm releases..."
-while true; do
-    helmreleases=$(kubectl get helmreleases.helm.toolkit.fluxcd.io --namespace kube-system --no-headers)
-    
+helmreleases=$(kubectl get helmreleases.helm.toolkit.fluxcd.io --namespace kube-system --no-headers)
+
+while [[ $(eval "echo $helmreleases | wc -l") -gt 0 ]]; do
     current_time=$(date +%s)
     elapsed_time=$((current_time - start_time))
 
@@ -30,10 +28,10 @@ while true; do
     fi
 
     if [[ $elapsed_time -gt $timeout ]]; then
-        echo "Timeout reached. Exiting without cleaning up PVCs..."
+        echo "Timeout reached. Exiting..."
         exit 1
     fi
 
-    echo "Sleeping for 5 seconds..."
     sleep 5
+    helmreleases=$(kubectl get helmreleases.helm.toolkit.fluxcd.io --namespace kube-system --no-headers)
 done
