@@ -1,38 +1,13 @@
-#!/bin/bash
+# Kubernetes Version Information
 
-# Purpose of this script is to wait for Helm Releases in the kube-system namespace
-# to be completely deleted from the cluster before terraform deletes the cluster.
-
-set -euo pipefail
-
-export OCI_CLI_AUTH=instance_principal
-oci ce cluster create-kubeconfig --cluster-id ${CLUSTER_ID}
-
-timeout=240 # Maximum timeout in seconds
-start_time=$(date +%s)
-
-while true; do
-  helmreleases=$(kubectl get helmreleases.helm.toolkit.fluxcd.io --namespace kube-system --no-headers)
-  if [[ -z "$helmreleases" ]]; then
-    echo "No Helm releases found. Cleaning up PVCs and exiting..."
-    pvcs=$(kubectl get pvc --namespace kube-system -o jsonpath='{.items[*].metadata.name}')
-    for pvc in $pvcs; do
-      echo "Deleting PVC: $pvc"
-      kubectl delete pvc "$pvc" --namespace kube-system
-    done
-    exit 0
-  else
-    echo "Helm releases found:"
-    echo "$helmreleases"
-  fi
-
-  current_time=$(date +%s)
-  elapsed_time=$((current_time - start_time))
-
-  if [[ $elapsed_time -gt $timeout ]]; then
-    echo "Timeout reached. Exiting..."
-    exit 1
-  fi
-
-  sleep 5
-done
+| Kubernetes Version | Available | End of Life | Date       |
+|--------------------|-----------|-------------|------------|
+| 1.22               | 2022-12   | 2023-03-31  | 2024-07-02 |
+| 1.23               | 2023-03   | 2023-06-30  | 2024-07-02 |
+| 1.24               | 2023-05   | 2023-09-30  | 2024-07-02 |
+| 1.25               | 2023-07   | 2024-01-31  | 2024-07-02 |
+| 1.26               | 2023-10   | 2024-04-30  | 2024-07-02 |
+| 1.27               | 2024-01   | 2024-06-30  | 2024-07-02 |
+| 1.28               | 2024-04   | 2024-08-31  | 2024-07-02 |
+| 1.29               | 2024-Q2   | 2024-Q4     | 2024-07-02 |
+| 1.30               | TBD       | TBD         | 2024-07-02 |
