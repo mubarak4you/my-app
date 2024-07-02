@@ -1,15 +1,13 @@
-resource "kubernetes_secret_v1" "go0v_vzdocker" {
-  metadata {
-    name      = "go0v-vzdocker-config"
-    namespace = "kube-system"
-    annotations = {
-      "reflector.v1.k8s.emberstack.com/reflection-allowed"      = "true"
-      "reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces" = "cert-manager,flux-system,gatekeeper-system,gitlab-runner-system"
-      "reflector.v1.k8s.emberstack.com/reflection-auto-enabled" = "true"
-    }
-  }
-  data = {
-    ".dockerconfigjson" = base64decode(var.go0v_vzdocker_config)
-  }
-  type = "kubernetes.io/dockerconfigjson"
-}
+# Kubernetes Version Information
+
+| Kubernetes Version | Available | End of Life | Date       |
+|--------------------|-----------|-------------|------------|
+| 1.22               | 2022-12   | 2023-03-31  | 2024-07-02 |
+| 1.23               | 2023-03   | 2023-06-30  | 2024-07-02 |
+| 1.24               | 2023-05   | 2023-09-30  | 2024-07-02 |
+| 1.25               | 2023-07   | 2024-01-31  | 2024-07-02 |
+| 1.26               | 2023-10   | 2024-04-30  | 2024-07-02 |
+| 1.27               | 2024-01   | 2024-06-30  | 2024-07-02 |
+| 1.28               | 2024-04   | 2024-08-31  | 2024-07-02 |
+| 1.29               | 2024-Q2   | 2024-Q4     | 2024-07-02 |
+| 1.30               | TBD       | TBD         | 2024-07-02 |
