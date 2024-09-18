@@ -1,148 +1,435 @@
-## ---------------------------------------------------------------------------------------------------------------------
-## Required variables
-## ---------------------------------------------------------------------------------------------------------------------
-
-variable "name" {
-  description = "The name of the cluster"
-  type        = string
-  validation {
-    condition     = length(var.name) < 19
-    error_message = "The name must be < 19 characters"
-  }
-  validation {
-    condition     = can(regex("^[[:lower:]]+[0-9a-z-]*", var.name))
-    error_message = "Must match ^[[:lower:]]+[0-9a-z-]*"
-  }
-}
-
-variable "region" {
-  description = "The region to host the cluster in."
-  type        = string
-  validation {
-    condition = anytrue([
-      var.region == "us-east4",
-      var.region == "us-west1",
-    ])
-    error_message = "Must be us-east4 or us-west1"
+/******************************************
+  Create Cluster
+ *****************************************/
+resource "google_pubsub_topic" "topic" {
+  provider     = google
+  project      = var.project_id
+  name         = local.cluster_name
+  kms_key_name = local.kms_key
+  labels       = local.cluster_labels
+  lifecycle {
+    precondition {
+      condition = can(regex(
+        "pubsub.googleapis.com",
+        data.shell_script.google_services.output["enabled_services"]
+      ))
+      error_message = join(" ",
+        ["The pubsub.googleapis.com service must be enabled for this project.",
+        "Contact the Cloud Governance team for support."]
+      )
+    }
   }
 }
 
-variable "project_id" {
-  description = "The project ID to host the cluster in."
-  type        = string
-  validation {
-    condition     = can(regex("^vz-(it|nonit)-(np|pr)-[a-z0-9-]*$", var.project_id))
-    error_message = "Must match ^vz-(it|nonit)-(np|pr)-[a-z0-9-]*$"
+resource "google_bigquery_dataset" "dataset" {
+  provider                   = google
+  project                    = var.project_id
+  dataset_id                 = replace(local.cluster_name, "-", "_")
+  location                   = "US"
+  labels                     = local.cluster_labels
+  delete_contents_on_destroy = true
+  default_encryption_configuration {
+    kms_key_name = local.kms_key_us
+  }
+  lifecycle {
+    precondition {
+      condition = can(regex(
+        "bigquery.googleapis.com",
+        data.shell_script.google_services.output["enabled_services"]
+      ))
+      error_message = join(" ",
+        ["The bigquery.googleapis.com service must be enabled for this project.",
+        "Contact the Cloud Governance team for support."]
+      )
+    }
   }
 }
 
-variable "user_id" {
-  description = "The user ID of the cluster owner."
-  type        = string
-  validation {
-    condition     = can(regex("^[[:alpha:]]+[[:alnum:]]*", var.user_id))
-    error_message = "Must match ^[[:alpha:]]+[[:alnum:]]*"
+resource "google_container_cluster" "primary" {
+  provider = google-beta
+
+  name                = local.cluster_name
+  location            = var.region
+  node_locations      = local.node_locations
+  deletion_protection = var.deletion_protection
+  addons_config {
+    horizontal_pod_autoscaling {
+      disabled = false
+    }
+    http_load_balancing {
+      disabled = false
+    }
+    network_policy_config {
+      disabled = true
+    }
+    gcp_filestore_csi_driver_config {
+      enabled = true
+    }
+    gce_persistent_disk_csi_driver_config {
+      enabled = true
+    }
+    gke_backup_agent_config {
+      enabled = true
+    }
+  }
+
+  cluster_autoscaling {
+    enabled = true
+    resource_limits {
+      resource_type = "cpu"
+      minimum       = 6
+      maximum       = 100000
+    }
+    resource_limits {
+      resource_type = "memory"
+      minimum       = 24
+      maximum       = 800000
+    }
+    resource_limits {
+      resource_type = "nvidia-tesla-k80"
+      minimum       = 0
+      maximum       = 10000
+    }
+    resource_limits {
+      resource_type = "nvidia-tesla-p100"
+      minimum       = 0
+      maximum       = 10000
+    }
+    resource_limits {
+      resource_type = "nvidia-tesla-p4"
+      minimum       = 0
+      maximum       = 10000
+    }
+    resource_limits {
+      resource_type = "nvidia-tesla-v100"
+      minimum       = 0
+      maximum       = 10000
+    }
+    resource_limits {
+      resource_type = "nvidia-tesla-t4"
+      minimum       = 0
+      maximum       = 10000
+    }
+    resource_limits {
+      resource_type = "nvidia-tesla-a100"
+      minimum       = 0
+      maximum       = 10000
+    }
+    resource_limits {
+      resource_type = "nvidia-a100-80gb"
+      minimum       = 0
+      maximum       = 10000
+    }
+    resource_limits {
+      resource_type = "nvidia-l4"
+      minimum       = 0
+      maximum       = 10000
+    }
+    auto_provisioning_defaults {
+      oauth_scopes = ["https://www.googleapis.com/auth/logging.write",
+        "https://www.googleapis.com/auth/monitoring",
+        "https://www.googleapis.com/auth/devstorage.read_only",
+      "https://www.googleapis.com/auth/compute"]
+      service_account   = data.shell_script.service_account.output["app_email"]
+      boot_disk_kms_key = local.kms_key
+      disk_size         = 100
+      disk_type         = "pd-balanced"
+      image_type        = "COS_CONTAINERD"
+      shielded_instance_config {
+        enable_integrity_monitoring = true
+        enable_secure_boot          = true
+      }
+      management {
+        auto_upgrade = true
+        auto_repair  = true
+      }
+      upgrade_settings {
+        max_surge       = 20
+        max_unavailable = 0
+      }
+    }
+    autoscaling_profile = "OPTIMIZE_UTILIZATION"
+  }
+  database_encryption {
+    state    = "ENCRYPTED"
+    key_name = local.kms_key
+  }
+  default_max_pods_per_node = 110
+  enable_shielded_nodes     = true
+  # Initial number of nodes per zone in the default pool
+  initial_node_count = 3
+  ip_allocation_policy {
+    cluster_secondary_range_name  = local.cluster_secondary_range_name
+    services_secondary_range_name = local.services_secondary_range_name
+    pod_cidr_overprovision_config {
+      disabled = false
+    }
+  }
+  networking_mode = "VPC_NATIVE"
+  logging_config {
+    enable_components = ["SYSTEM_COMPONENTS", "APISERVER", "CONTROLLER_MANAGER", "SCHEDULER", "WORKLOADS"]
+  }
+  maintenance_policy {
+    dynamic "recurring_window" {
+      for_each = local.cluster_maintenance_window_is_recurring
+      content {
+        start_time = var.maintenance_start_time
+        end_time   = var.maintenance_end_time
+        recurrence = var.maintenance_recurrence
+      }
+    }
+
+    dynamic "daily_maintenance_window" {
+      for_each = local.cluster_maintenance_window_is_daily
+      content {
+        start_time = var.maintenance_start_time
+      }
+    }
+
+    dynamic "maintenance_exclusion" {
+      for_each = var.maintenance_exclusions
+      content {
+        exclusion_name = maintenance_exclusion.value.name
+        start_time     = maintenance_exclusion.value.start_time
+        end_time       = maintenance_exclusion.value.end_time
+
+        dynamic "exclusion_options" {
+          for_each = maintenance_exclusion.value.exclusion_scope == null ? [] : [maintenance_exclusion.value.exclusion_scope]
+          content {
+            scope = exclusion_options.value
+          }
+        }
+      }
+    }
+  }
+  master_authorized_networks_config {
+    dynamic "cidr_blocks" {
+      for_each = local.shared_subnet_cidr_blocks
+      content {
+        cidr_block   = cidr_blocks.value.cidr_block
+        display_name = cidr_blocks.value.display_name
+      }
+    }
+    gcp_public_cidrs_access_enabled = false
+  }
+
+  min_master_version = data.google_container_engine_versions.primary.release_channel_latest_version["STABLE"]
+  monitoring_config {
+    enable_components = ["SYSTEM_COMPONENTS", "APISERVER", "CONTROLLER_MANAGER", "SCHEDULER"]
+    managed_prometheus {
+      enabled = true
+    }
+    advanced_datapath_observability_config {
+      enable_metrics = false
+      enable_relay   = false
+    }
+  }
+  network = local.network
+  network_policy {
+    enabled  = false
+    provider = "PROVIDER_UNSPECIFIED"
+  }
+  node_config {
+    disk_size_gb    = 100
+    disk_type       = "pd-balanced"
+    image_type      = "COS_CONTAINERD"
+    labels          = local.cluster_labels
+    resource_labels = local.cluster_resource_labels
+    machine_type    = "e2-standard-4"
+    metadata = {
+      disable-legacy-endpoints = true
+    }
+    boot_disk_kms_key = local.kms_key
+    service_account   = data.shell_script.service_account.output["app_email"]
+    shielded_instance_config {
+      enable_secure_boot          = true
+      enable_integrity_monitoring = true
+    }
+  }
+
+  notification_config {
+    pubsub {
+      enabled = true
+      topic   = google_pubsub_topic.topic.id
+    }
+  }
+  private_cluster_config {
+    enable_private_endpoint     = true
+    enable_private_nodes        = true
+    private_endpoint_subnetwork = local.subnetwork
+  }
+  project = var.project_id
+  release_channel {
+    channel = "STABLE"
+  }
+  remove_default_node_pool = true
+  resource_labels          = local.cluster_resource_labels
+  cost_management_config {
+    enabled = true
+  }
+  resource_usage_export_config {
+    enable_network_egress_metering       = true
+    enable_resource_consumption_metering = true
+    bigquery_destination {
+      dataset_id = google_bigquery_dataset.dataset.dataset_id
+    }
+  }
+  subnetwork = local.subnetwork
+  timeouts {
+    create = lookup(var.timeouts, "create", "45m")
+    update = lookup(var.timeouts, "update", "120m")
+    delete = lookup(var.timeouts, "delete", "45m")
+  }
+  vertical_pod_autoscaling {
+    enabled = true
+  }
+  workload_identity_config {
+    workload_pool = "${var.project_id}.svc.id.goog"
+  }
+  enable_intranode_visibility = true
+  enable_l4_ilb_subsetting    = true
+  datapath_provider           = "ADVANCED_DATAPATH"
+  default_snat_status {
+    disabled = false
+  }
+  lifecycle {
+    ignore_changes = [
+      cluster_telemetry,
+      initial_node_count,
+      master_auth,
+      node_config,
+      node_pool,
+      resource_labels["mesh_id"]
+    ]
+    # ACM precondition
+    precondition {
+      condition = can(regex(
+        "configmanagement",
+        data.shell_script.fleet_features.output["enabled_features"]
+      ))
+      error_message = join(" ",
+        ["The config management feature must be enabled on the fleet project.",
+        "Contact the Cloud Governance team for support."]
+      )
+    }
+    # ASM precondition
+    precondition {
+      condition = can(regex(
+        "mesh.googleapis.com",
+        data.shell_script.google_services.output["enabled_services"]
+      ))
+      error_message = join(" ",
+        ["The mesh.googleapis.com service must be enabled for this project.",
+        "Contact the Cloud Governance team for support."]
+      )
+    }
+    precondition {
+      condition = can(regex(
+        "servicemesh",
+        data.shell_script.fleet_features.output["enabled_features"]
+      ))
+      error_message = join(" ",
+        ["The service mesh feature must be enabled on the fleet project.",
+        "Contact the Cloud Governance team for support."]
+      )
+    }
+    # (TODO cappni7) Need to verify if GKE will reject upgrades from less than master version N-1
+    precondition {
+      condition = can(regex(
+        "container.googleapis.com",
+        data.shell_script.google_services.output["enabled_services"]
+      ))
+      error_message = join(" ",
+        ["The container.googleapis.com service must be enabled for this project.",
+        "Contact the Cloud Governance team for support."]
+      )
+    }
+    precondition {
+      condition = can(regex(
+        "^(NOT_FOUND|RUNNING)$",
+        data.shell_script.cluster_status.output["status"]
+      ))
+      error_message = "The cluster must be in the RUNNING status to perform an update."
+    }
+
+    # precondition to check keyrings and keys
+    precondition {
+      condition = data.shell_script.kms_keys.output["kms_key_exists"] > 0
+      error_message = join(" ",
+        ["KMS key not found: ${local.kms_key}",
+        "Contact the Cloud Governance team for support."]
+      )
+    }
+    precondition {
+      condition = data.shell_script.kms_keys.output["kms_key_us_exists"] > 0
+      error_message = join(" ",
+        ["KMS key not found: ${local.kms_key_us}",
+        "Contact the Cloud Governance team for support."]
+      )
+    }
+    precondition {
+      condition = length(data.shell_script.service_account.output["app_email"]) > 0
+      error_message = join(" ",
+        ["Application service account not found.",
+        "Contact the Cloud Governance team for support."]
+      )
+    }
+    precondition {
+      condition = length(data.shell_script.service_account.output["monitoring_email"]) > 0
+      error_message = join(" ",
+        ["Monitoring service account not found.",
+        "Contact the Cloud Governance team for support."]
+      )
+    }
+    postcondition {
+      condition     = regex(local.semver_regex, self.master_version).minor <= local.module_minor_version
+      error_message = "Cannot downgrade the cluster control plane minor version."
+    }
+    postcondition {
+      condition = local.module_minor_version - regex(local.semver_regex, self.master_version).minor < 2
+      error_message = join(" ",
+        ["Must upgrade the cluster control plane by one minor version.",
+        "For example 1.26 upgrades to 1.27."]
+      )
+    }
+  }
+  provisioner "local-exec" {
+    # Run overprovisioning job to get node auto-provisioning (NAP) to create larger nodes
+    # for new clusters. This greatly improves the start up time for new clusters
+    # that exclusively use NAP. This provisioner will only run when a cluster
+    # resource is created.
+    environment = {
+      "CLUSTER_NAME" = local.cluster_name
+      "http_proxy"   = local.http_proxy
+      "HTTP_PROXY"   = local.http_proxy
+      "https_proxy"  = local.http_proxy
+      "HTTPS_PROXY"  = local.http_proxy
+      "no_proxy"     = local.no_proxy
+      "NO_PROXY"     = local.no_proxy
+      "PROJECT"      = var.project_id
+      "REGION"       = var.region
+    }
+    working_dir = "${path.module}/scripts"
+    interpreter = ["/bin/bash", "-c"]
+    command     = "./run-overprovisioning.sh"
   }
 }
 
-variable "user_email" {
-  description = "The user email of the cluster owner."
-  type        = string
-}
-
-
-## ---------------------------------------------------------------------------------------------------------------------
-## Optional variables
-## ---------------------------------------------------------------------------------------------------------------------
-
-variable "kubernetes_version" {
-  type        = string
-  description = "The Kubernetes version of the masters."
-  default     = "1.29"
-}
-
-variable "hub_project_id" {
-  description = "The project in which the GKE Hub belongs. Defaults to GKE cluster project_id."
-  type        = string
-  default     = ""
-}
-
-variable "environment" {
-  description = "The environment to host the cluster in."
-  type        = string
-  default     = ""
-}
-
-variable "vsad" {
-  description = "The VSAD of the cluster."
-  type        = string
-  default     = ""
-}
-
-variable "timeouts" {
-  type        = map(string)
-  description = "Timeout for cluster operations."
-  default     = {}
-  validation {
-    condition     = !contains([for t in keys(var.timeouts) : contains(["create", "update", "delete"], t)], false)
-    error_message = "Only create, update, delete timeouts can be specified."
+# This will manually trigger node pool upgrades when the Kubernetes
+# control plane version has changed. This is required because the
+# google_container_cluster TF resource does not intitiate node pool kubernetes
+# version upgrades
+resource "terraform_data" "node_pools" {
+  triggers_replace = google_container_cluster.primary.min_master_version
+  provisioner "local-exec" {
+    environment = {
+      "CLUSTER_NAME"   = local.cluster_name
+      "PROJECT"        = var.project_id
+      "REGION"         = var.region
+      "MASTER_VERSION" = data.google_container_engine_versions.primary.release_channel_latest_version["STABLE"]
+    }
+    working_dir = "${path.module}/scripts"
+    interpreter = ["/bin/bash", "-c"]
+    command     = "./upgrade-nodepools.sh"
   }
-}
-variable "maintenance_exclusions" {
-  type        = list(object({ name = string, start_time = string, end_time = string, exclusion_scope = string }))
-  description = "List of maintenance exclusions. A cluster can have up to three"
-  # The Google Cloud API requires that the end_time be within
-  # 180 days from the day the maintenance exclusion is created
-  default = []
-}
-
-# Maintenance window policy is
-# 6PM - 2AM ET every Wednesday and Friday
-# ETOKE-1131 change time to 01AM to 9AM 
-variable "maintenance_start_time" {
-  type        = string
-  description = "Time window specified for daily or recurring maintenance operations in RFC3339 format"
-  default     = "2019-01-01T01:00:00Z"
-}
-
-variable "maintenance_end_time" {
-  type        = string
-  description = "Time window specified for recurring maintenance operations in RFC3339 format"
-  default     = "2019-01-01T09:00:00Z"
-}
-
-variable "maintenance_recurrence" {
-  type        = string
-  description = "Frequency of the recurring maintenance window in RFC5545 format."
-  default     = "FREQ=WEEKLY;BYDAY=WE,FR"
-}
-
-variable "config_sync_infra_branch" {
-  description = "The branch of the infra repository to sync from. Defaults to the release branch matching the cluster version. This variable is meant for development purposes only."
-  type        = string
-  default     = "main"
-}
-
-variable "config_sync_security_branch" {
-  description = "The branch of the security repository to sync from. Defaults to the release branch matching the cluster version. This variable is meant for development purposes only."
-  type        = string
-  default     = "main"
-}
-
-variable "pipeline_id" {
-  description = "The ID of the last GitLab pipeline to update this cluster."
-  type        = string
-  default     = ""
-}
-
-variable "cluster_module_version" {
-  description = "Semantic version of the module applied."
-  type        = string
-  default     = ""
-}
-
-variable "deletion_protection" {
-  description = "Whether or not to allow Terraform to destroy the cluster. Terraform cannot delete this cluster unless this field is set to false in Terraform state."
-  type        = bool
-  default     = true
 }
