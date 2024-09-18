@@ -1,323 +1,221 @@
+/******************************************
+  Define locals and data resources
+ *****************************************/
+
 locals {
-  # (TODO cappni7) Configuration values is a placeholder. Subnets will be confirmed with the network team
-  # closer to the GA release date.
-  environment_config = {
-    "NONPROD" = {
-      tenancy_name        = "vznprdbizgeneral"
-      root_compartment_id = "ocid1.tenancy.oc1..aaaaaaaaf3rzvq3we74v2a3zmgsbez734ziwpaquh62s3y3arp57tasaoxaq"
-      network_config = {
-        iad = {
-          vcn_id               = "ocid1.vcn.oc1.iad.aaaaaaaajolhy6ptw26lngfs2aqaizynzsqj5nfr2cslamloumbze473fa5a"    # oci.general.npd.us-ashburn-1.vcn
-          endpoint_subnet_id   = "ocid1.subnet.oc1.iad.aaaaaaaahcpg2b2tvrxlm7asaofmitzfw54xkpxewgvcel4cr6hjbvlg66za" # oci.general.npd.us-ashburn-1.gz.oke.worker.subnet-2
-          service_lb_subnet_id = "ocid1.subnet.oc1.iad.aaaaaaaa5qhbqidcyflys6gmujxixnqa3ai2eq55sxrpmdbabtc5746sgnba" # oci.general.npd.us-ashburn-1.gz.general.subnet-1
-          node_subnet_id       = "ocid1.subnet.oc1.iad.aaaaaaaahcpg2b2tvrxlm7asaofmitzfw54xkpxewgvcel4cr6hjbvlg66za" # oci.general.npd.us-ashburn-1.gz.oke.worker.subnet-2
-          dns_nameservers      = "153.114.241.7 159.67.63.7"
-        }
-        phx = {
-          vcn_id               = ""
-          endpoint_subnet_id   = ""
-          service_lb_subnet_id = ""
-          node_subnet_id       = ""
-          dns_nameservers      = "153.114.240.7 159.67.14.7"
-        }
-      }
-      proxy = {
-        http_proxy  = "http://proxy.ebiz.verizon.com:9290"
-        https_proxy = "http://proxy.ebiz.verizon.com:9290"
-        no_proxy    = "10.96.0.1,169.254.169.254,127.0.0.1,localhost,.verizon.com,.vzwcorp.com,.vzbi.com"
-      }
-      kms = {
-        iad = {
-          vault_id = "ocid1.vault.oc1.iad.bbpa7dkdaaeuk.abuwcljtbexpr3thfwbn5opdupsqlsq4lknly744aygvhkrzd6sii65kh6bq"
-        }
-        phx = {
-          vault_id = "ocid1.vault.oc1.phx.a5ph4ro2aafqw.abyhqljtqxxwupzzfnudjtdaqyx4qgly3qdfdqhe7e7jtxyvqd2bvbqtxaea"
-        }
-      }
+  environment                             = var.environment != "" ? var.environment : regex("^vz-(?P<group>it|nonit)-(?P<environment>np|pr)-(?P<vsad>[a-z0-9]+)-.*", var.project_id).environment
+  vsad                                    = var.vsad != "" ? var.vsad : regex("^vz-(?P<group>it|nonit)-(?P<environment>np|pr)-(?P<vsad>[a-z0-9]+)-.*", var.project_id).vsad
+  bu                                      = lookup(data.google_project.project.labels, "bu", "BU not found")
+  cluster_name                            = lower("gke-${var.name}-${local.environment}-${var.region}-${local.vsad}")
+  node_locations                          = var.region == "us-east4" ? ["us-east4-a", "us-east4-b"] : ["us-west1-a", "us-west1-b"]
+  kms_project                             = "vz-it-${local.environment}-d0sv-vsadkms-0"
+  key_prefix                              = join("-", regex("^(vz)-(it|nonit)-(np|pr)", var.project_id))
+  keyring_name                            = "${local.key_prefix}-kr-${local.bu}"
+  key_name                                = "${local.key_prefix}-kms-${local.vsad}"
+  keyring                                 = "projects/${local.kms_project}/locations/${var.region}/keyRings/${local.keyring_name}"
+  keyring_us                              = "projects/${local.kms_project}/locations/us/keyRings/${local.keyring_name}"
+  kms_key                                 = "${local.keyring}/cryptoKeys/${local.key_name}"
+  kms_key_us                              = "${local.keyring_us}/cryptoKeys/${local.key_name}"
+  cluster_maintenance_window_is_recurring = var.maintenance_recurrence != "" && var.maintenance_end_time != "" ? [1] : []
+  cluster_maintenance_window_is_daily     = length(local.cluster_maintenance_window_is_recurring) > 0 ? [] : [1]
+  hub_project_id                          = var.hub_project_id == "" ? var.project_id : var.hub_project_id
+  gke_hub_membership_name                 = trimsuffix(substr(local.cluster_name, 0, 63), "-")
+  module_minor_version                    = regex("^(?P<major>[0-9]+).(?P<minor>[0-9]+)", var.kubernetes_version).minor
+  semver_regex                            = "(?P<major>[0-9]+).(?P<minor>[0-9]+).(?P<patch>[0-9]+)"
+
+  # VPC Network
+  sharedvpc_project             = local.environment == "pr" ? "vz-it-pr-exhv-sharedvpc-228020" : "vz-it-np-exhv-sharedvpc-228116"
+  sharedvpc_name                = var.region == "us-east4" ? "shared-${local.environment}-east" : "shared-${local.environment}-west"
+  node_subnet_name              = var.region == "us-east4" ? "shared-${local.environment}-east-gke-nodes-1" : "shared-${local.environment}-west-gke-nodes-1"
+  cluster_secondary_range_name  = var.region == "us-east4" ? "shared-${local.environment}-east-gke-pod-0" : "shared-${local.environment}-west-gke-pod-0"
+  services_secondary_range_name = var.region == "us-east4" ? "shared-${local.environment}-east-gke-services-0" : "shared-${local.environment}-west-gke-services-0"
+  network                       = "projects/${local.sharedvpc_project}/global/networks/${local.sharedvpc_name}"
+  subnetwork                    = "projects/${local.sharedvpc_project}/regions/${var.region}/subnetworks/${local.node_subnet_name}"
+
+  # HTTP proxy
+  http_proxy        = lower(local.environment) == "pr" ? "http://vzproxy.verizon.com:9290" : "http://proxy.ebiz.verizon.com:9290"
+  static_no_proxy   = "172.20.0.1,10.100.0.1,127.0.0.1,localhost,.verizon.com,.vzwcorp.com,.vzbi.com,10.74.132.65,192.168.0.1,.googleapis.com"
+  node_subnet_range = data.google_compute_subnetwork.subnet.ip_cidr_range
+  pod_subnet_range = data.google_compute_subnetwork.subnet.secondary_ip_range[
+    index(
+      data.google_compute_subnetwork.subnet.secondary_ip_range[*].range_name,
+      local.cluster_secondary_range_name
+  )].ip_cidr_range
+  svc_subnet_range = data.google_compute_subnetwork.subnet.secondary_ip_range[
+    index(
+      data.google_compute_subnetwork.subnet.secondary_ip_range[*].range_name,
+      local.services_secondary_range_name
+  )].ip_cidr_range
+  no_proxy = format("%s,%s,%s,%s", local.static_no_proxy, local.node_subnet_range, local.pod_subnet_range, local.svc_subnet_range)
+
+  # Master authorized networks
+  shared_subnet_cidr_blocks_east = [for subnet in data.google_compute_subnetworks.east.subnetworks :
+    {
+      cidr_block   = subnet.ip_cidr_range
+      display_name = subnet.name
     }
-    "PROD" = {
-      tenancy_name        = ""
-      root_compartment_id = ""
-      network_config = {
-        iad = {
-          vcn_id               = ""
-          endpoint_subnet_id   = ""
-          service_lb_subnet_id = ""
-          node_subnet_id       = ""
-          dns_nameservers      = "153.114.241.7 159.67.63.7"
-        }
-        phx = {
-          vcn_id               = ""
-          endpoint_subnet_id   = ""
-          service_lb_subnet_id = ""
-          node_subnet_id       = ""
-          dns_nameservers      = "153.114.240.7 159.67.14.7"
-        }
-      }
-      proxy = {
-        http_proxy  = "http://vzproxy.verizon.com:9290"
-        https_proxy = "http://vzproxy.verizon.com:9290"
-        no_proxy    = "10.96.0.1,169.254.169.254,127.0.0.1,localhost,.verizon.com,.vzwcorp.com,.vzbi.com"
-      }
-      kms = {
-        iad = {
-          vault_id = ""
-        }
-        phx = {
-          vault_id = ""
-        }
-      }
+    # cappni7 - Temporarily restrict to east-green-subnet-1 until privately used public IP (PUPI) is
+    # supported by MAN
+    if can(regex("^shared-${local.environment}-east-green-subnet-1", subnet.name))
+  ]
+  shared_subnet_cidr_blocks_west = [for subnet in data.google_compute_subnetworks.west.subnetworks :
+    {
+      cidr_block   = subnet.ip_cidr_range
+      display_name = subnet.name
     }
+    # cappni7 - Temporarily restrict to west-green-subnet-1 until privately used public IP (PUPI) is
+    # supported by MAN
+    if can(regex("^shared-${local.environment}-west-green-subnet-1", subnet.name))
+  ]
+
+  # Define additional authorized networks for user projects
+  project_authorized_networks = {
+    # "vz-it-np-go0v-dev-gketst-0" = [
+    #   {
+    #     cidr_block   = "192.168.0.0/16"
+    #     display_name = "Test authorized network"
+    #   }
+    # ]
   }
-
-  # Most Compartment names are the VSAD. This is a map of the exceptions.
-  vsad_compartment_map = {
-    "CKKV" = "Governance"
-    "D0SV" = "Security"
-    "GVGV" = "Engineering"
-    "GO0V" = "K8"
-  }
-  compartment_name = coalesce(
-    lookup(local.vsad_compartment_map, var.vsad, null),
-    var.vsad
-  )
-  compartment_id = data.oci_identity_compartments.cluster.compartments[0].id
-
-  environment_key = var.environment == "NONPROD" ? "np" : "pr"
-  network_config  = local.environment_config[var.environment].network_config[var.region_key]
-  no_proxy = join(",", [local.environment_config[var.environment].proxy.no_proxy,
-  data.oci_core_subnet.api_endpoint.cidr_block])
-  region_id = data.oci_identity_regions.primary.regions[0].name
-  zone      = upper(data.oci_core_subnet.node.defined_tags["Network-Tags.Zone"])
-
-  # Get the VAST ID from a tag if we can because the VAST service is unreliable.
-  vast_id = (
-    var.cluster_id == null ?
-    jsondecode(data.http.vast_services[0].response_body).ApplicationID :
-    data.oci_containerengine_clusters.primary[0].clusters[0].freeform_tags["VAST"]
-  )
-  cluster_name = (
-    var.cluster_id != null ?
-    data.oci_containerengine_clusters.primary[0].clusters[0].name :
-    join(".", [
-      "oke",
-      var.short_name,
-      local.environment_key,
-      var.region_key,
-      lower(var.vsad)
-    ])
-  )
-
-  # Get user metadata from Orchestra
-  user_id = (
-    var.cluster_id != null ?
-    data.oci_containerengine_clusters.primary[0].clusters[0].freeform_tags["UserID"] :
-    var.user_id
-  )
-  whois_url        = "https://orchestra.verizon.com/aws/api/whois"
-  user_metadata    = jsondecode(data.http.user_metadata.response_body)
-  manager_metadata = jsondecode(data.http.manager_metadata.response_body)
-
-  # Filter keys by display name and defined tags
-  # Expected display name format: VSAD-REGION-ENVIRONMENT
-  # i.e. GO0V-ASH-NonProd
-  kms_region = var.region_key == "iad" ? "ASH" : "PHX"
-  kms_key_id = [
-    for key in data.oci_kms_keys.primary.keys :
-    key.id if lower(key.defined_tags["KMS-tags.VSAD"]) == lower(var.vsad)
-    && lower(key.defined_tags["KMS-tags.Environment"]) == lower(var.environment)
-    && lower(regex("^(?P<vsad>[A-Z0-9]+)-(?P<region>ASH|PHX)-(?P<env>[A-Za-z]+)$", key.display_name).vsad) == lower(var.vsad)
-    && regex("^(?P<vsad>[A-Z0-9]+)-(?P<region>ASH|PHX)-(?P<env>[A-Za-z]+)$", key.display_name).region == local.kms_region
-    && lower(regex("^(?P<vsad>[A-Z0-9]+)-(?P<region>ASH|PHX)-(?P<env>[A-Za-z]+)$", key.display_name).env) == lower(var.environment)
-  ][0]
-
-  is_oke_coredns_addon_enabled = (
-    var.cluster_id != null ?
-    contains(data.oci_containerengine_addons.cluster[0].addons, "CoreDNS") :
-    null
-  )
-  node_image_type = (
-    var.cluster_id != null ?
-    data.oci_containerengine_clusters.primary[0].clusters[0].freeform_tags["ComputeOS"] :
-    null
-  )
-  is_oke_image_type = local.node_image_type == "OKE"
-  dns_forward = (
-    local.is_oke_image_type ?
-    local.environment_config[var.environment].network_config[var.region_key].dns_nameservers :
-    "/etc/resolv.conf"
-  )
-
-  ## OCI Resource Tags
-  tags = {
-
-    block_storage = {
-      defined = {
-        "Block-Storage-tags.Expiration"   = ""
-        "Block-Storage-tags.InstanceName" = local.cluster_name
-        "Block-Storage-tags.UserID"       = lower(local.user_id)
-        "Block-Storage-tags.VolumeGroup"  = ""
-        "Block-Storage-tags.VSAD"         = upper(var.vsad)
-        "Block-Storage-tags.Zone"         = local.zone
-      }
-      freeform = {
-        "ClusterName" = local.cluster_name
-      }
-    }
-
-    cluster = {
-      defined = null
-      freeform = {
-        "Owner"  = local.user_metadata.mail
-        "UserID" = lower(local.user_id)
-        "VSAD"   = upper(var.vsad)
-        "VAST"   = local.vast_id
-      }
-    }
-
-    fss = {
-      defined = {
-        "FSS-tags.Environment" = var.environment
-        "FSS-tags.UserID"      = lower(local.user_id)
-        "FSS-tags.VSAD"        = upper(var.vsad)
-        "FSS-tags.Zone"        = local.zone
-      }
-      freeform = {
-        "ClusterName" = local.cluster_name
-      }
-    }
-
-    load_balancer = {
-      defined = {
-        "Load-Balancer-tags.Environment" = var.environment
-        "Load-Balancer-tags.Owner"       = local.user_metadata.mail
-        "Load-Balancer-tags.VSAD"        = upper(var.vsad)
-        "Load-Balancer-tags.UserID"      = lower(local.user_id)
-        "Load-Balancer-tags.Zone"        = local.zone
-      }
-      freeform = {
-        "ClusterName" = local.cluster_name
-      }
-    }
-    node_pool = {
-      defined = null
-      freeform = {
-        "ClusterName" = local.cluster_name
-        "Owner"       = local.user_metadata.mail
-        "UserID"      = lower(local.user_id)
-        "VSAD"        = upper(var.vsad)
-      }
-    }
-
-    node = {
-      defined = {
-        "Compute-Tag.AppCustodian" = local.manager_metadata.mail
-        # (TODO cappni7) What should BornOn represent?
-        # CAS will create nodes dynamically
-        "Compute-Tag.BornOn"       = ""
-        "Compute-Tag.Environment"  = var.environment
-        "Compute-Tag.InstanceName" = local.cluster_name
-        "Compute-Tag.InstanceRole" = "App"
-        "Compute-Tag.LaunchedBy"   = local.user_metadata.mail
-        "Compute-Tag.Live"         = "Build"
-        "Compute-Tag.ManagedBy"    = local.user_metadata.mail
-        "Compute-Tag.Portfolio"    = ""
-        "Compute-Tag.RequestedBy"  = local.user_metadata.mail
-        "Compute-Tag.TenancyName"  = local.environment_config[var.environment].tenancy_name
-        "Compute-Tag.UserID"       = lower(local.user_id)
-        "Compute-Tag.VAST"         = local.vast_id
-        "Compute-Tag.VSAD"         = upper(var.vsad)
-        "Compute-Tag.Zone"         = local.zone
-      }
-      freeform = {
-        "ClusterName" = local.cluster_name
-      }
-    }
-  }
-}
-
-data "http" "user_metadata" {
-  url                = "${local.whois_url}/${lower(local.user_id)}?format=json"
-  method             = "GET"
-  request_timeout_ms = 5000
-  retry {
-    attempts     = 2
-    max_delay_ms = 10000
-    min_delay_ms = 2000
-  }
-}
-
-data "http" "manager_metadata" {
-  url                = "${local.whois_url}/${lower(local.user_metadata.managerId)}?format=json"
-  method             = "GET"
-  request_timeout_ms = 5000
-  retry {
-    attempts     = 2
-    max_delay_ms = 10000
-    min_delay_ms = 2000
-  }
-}
-data "http" "vast_services" {
-  count              = var.cluster_id == null ? 1 : 0
-  method             = "GET"
-  request_timeout_ms = 8000
-  url = join("", [
-    "https://vast-services.verizon.com/apm/getapplicationdetails?outputtype=json&vsadid=",
-    lower(var.vsad)
+  project_cidr_blocks = flatten([
+    for k, v in local.project_authorized_networks :
+    v if k == var.project_id
   ])
-  retry {
-    attempts     = 9
-    max_delay_ms = 60000
-    min_delay_ms = 15000
+  shared_subnet_cidr_blocks = concat(
+    local.shared_subnet_cidr_blocks_east,
+    local.shared_subnet_cidr_blocks_west,
+    local.project_cidr_blocks
+  )
+
+  # Labels
+  env_long_name = local.environment == "pr" ? "production" : "nonproduction"
+  owner         = lower(replace(replace(var.user_email, "@", "__"), ".", "-"))
+  ccdistro      = "gke-platform-engineering_verizon-com"
+  cluster_labels = {
+    bu                       = lower(local.bu)
+    ccdistro                 = local.ccdistro
+    env                      = local.env_long_name
+    owner                    = local.owner
+    userid                   = lower(var.user_id)
+    vsad                     = local.vsad
+    infra_rootsync_branch    = lower(replace(replace(var.config_sync_infra_branch, "/", "_"), ".", "-"))
+    security_rootsync_branch = lower(replace(replace(var.config_sync_security_branch, "/", "_"), ".", "-"))
+    last_pipeline_id         = var.pipeline_id
+    cluster_module_version   = lower(replace(var.cluster_module_version, ".", "-"))
   }
+  cluster_resource_labels = merge(
+    local.cluster_labels,
+    { "mesh_id" = "proj-${data.google_project.project.number}" }
+  )
+
+  # Cluster output
+  cluster_id                      = google_container_cluster.primary.id
+  cluster_endpoint                = google_container_cluster.primary.endpoint
+  cluster_region                  = var.region
+  cluster_master_version          = google_container_cluster.primary.master_version
+  cluster_min_master_version      = google_container_cluster.primary.min_master_version
+  cluster_release_channel         = google_container_cluster.primary.release_channel
+  cluster_master_auth             = concat(google_container_cluster.primary[*].master_auth, [])
+  cluster_master_auth_list_layer1 = local.cluster_master_auth
+  cluster_master_auth_list_layer2 = local.cluster_master_auth_list_layer1[0]
+  cluster_master_auth_map         = local.cluster_master_auth_list_layer2[0]
+  cluster_ca_certificate          = local.cluster_master_auth_map["cluster_ca_certificate"]
+  hub_membership_id               = google_gke_hub_membership.primary.membership_id
 }
 
-data "oci_containerengine_addons" "cluster" {
-  count      = var.cluster_id != null ? 1 : 0
-  cluster_id = var.cluster_id
+data "google_project" "project" {
+  provider   = google
+  project_id = var.project_id
 }
 
-data "oci_containerengine_clusters" "primary" {
-  count          = var.cluster_id != null ? 1 : 0
-  compartment_id = local.compartment_id
-  filter {
-    name   = "id"
-    values = [var.cluster_id]
+data "google_compute_subnetwork" "subnet" {
+  provider  = google
+  self_link = "https://www.googleapis.com/compute/v1/projects/${local.sharedvpc_project}/regions/${var.region}/subnetworks/${local.node_subnet_name}"
+}
+
+data "google_compute_subnetworks" "east" {
+  provider = google
+  project  = local.sharedvpc_project
+  region   = "us-east4"
+}
+
+data "google_compute_subnetworks" "west" {
+  provider = google
+  project  = local.sharedvpc_project
+  region   = "us-west1"
+}
+
+data "google_container_engine_versions" "primary" {
+  provider = google
+  location = var.region
+  project  = var.project_id
+  # Add suffix to ensure the correct MINOR or PATCH version is resoled. For example, "1.1" should not resolve "1.15"
+  version_prefix = can(regex("\\d\\.\\d+\\.\\d", var.kubernetes_version)) ? "${var.kubernetes_version}-" : "${var.kubernetes_version}."
+}
+
+# We are using the shell_script provider to create data sources
+# to get information that is not available using the regular
+# Google TF provider data sources.
+data "shell_script" "cluster_status" {
+  lifecycle_commands {
+    read = file("${path.module}/scripts/get-cluster-status.sh")
   }
-}
-
-data "oci_core_subnet" "node" {
-  subnet_id = local.network_config.node_subnet_id
-}
-
-data "oci_core_subnet" "api_endpoint" {
-  subnet_id = local.network_config.endpoint_subnet_id
-}
-
-data "oci_identity_compartments" "cluster" {
-  compartment_id            = local.environment_config[var.environment].root_compartment_id
-  compartment_id_in_subtree = true
-  name                      = local.compartment_name
-  lifecycle {
-    postcondition {
-      condition     = length(self.compartments) > 0
-      error_message = "Compartment not found for VSAD '${var.vsad}'."
-    }
+  environment = {
+    "PROJECT"      = var.project_id
+    "CLUSTER_NAME" = local.cluster_name
+    "REGION"       = var.region
   }
+  interpreter       = ["/bin/bash", "-c"]
+  working_directory = "${path.module}/scripts"
 }
-
-data "oci_identity_regions" "primary" {
-  filter {
-    name   = "key"
-    values = [upper(var.region_key)]
+data "shell_script" "google_services" {
+  lifecycle_commands {
+    read = file("${path.module}/scripts/list-services.sh")
   }
+  environment = {
+    "GOOGLE_PROJECT" = var.project_id
+  }
+
+  interpreter       = ["/bin/bash", "-c"]
+  working_directory = "${path.module}/scripts"
 }
 
-data "oci_kms_vault" "primary" {
-  vault_id = local.environment_config[var.environment]["kms"][var.region_key]["vault_id"]
+data "shell_script" "service_account" {
+  lifecycle_commands {
+    read = file("${path.module}/scripts/get-service-account.sh")
+  }
+  environment = {
+    "PROJECT" = var.project_id
+    "VSAD"    = local.vsad
+  }
+
+  interpreter       = ["/bin/bash", "-c"]
+  working_directory = "${path.module}/scripts"
 }
 
-data "oci_kms_keys" "primary" {
-  compartment_id      = local.compartment_id
-  management_endpoint = data.oci_kms_vault.primary.management_endpoint
+data "shell_script" "kms_keys" {
+  lifecycle_commands {
+    read = file("${path.module}/scripts/check-kms-keys.sh")
+  }
+  environment = {
+    "KEYRING"    = local.keyring
+    "KEY"        = local.kms_key
+    "KEYRING_US" = local.keyring_us
+    "KEY_US"     = local.kms_key_us
+  }
+
+  interpreter       = ["/bin/bash", "-c"]
+  working_directory = "${path.module}/scripts"
+}
+
+data "shell_script" "fleet_features" {
+  lifecycle_commands {
+    read = file("${path.module}/scripts/list-fleet-features.sh")
+  }
+  environment = {
+    "PROJECT" = var.project_id
+  }
+
+  interpreter       = ["/bin/bash", "-c"]
+  working_directory = "${path.module}/scripts"
 }
