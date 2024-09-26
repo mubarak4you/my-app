@@ -1,14 +1,19 @@
+resource "google_container_cluster" "primary" {
+  # Other necessary cluster config...
 
-│ Error: Invalid index
-│ 
-│   on cluster.tf line 180, in resource "google_container_cluster" "primary":
-│  180:         ])[0]["maintenance_start_time"],
-│     ├────────────────
-│     │ local.cluster_key is a string
-│     │ local.maintenance_window_overrides is object with no attributes
-│ 
-│ The given key does not identify an element in this collection value: the
-│ collection has no elements.
+  maintenance_policy {
+    recurring_window {
+      start_time = length(local.maintenance_window_overrides) > 0 && contains(keys(local.maintenance_window_overrides), local.cluster_key)
+        ? local.maintenance_window_overrides[local.cluster_key]["maintenance_start_time"]
+        : var.maintenance_start_time
 
+      end_time = length(local.maintenance_window_overrides) > 0 && contains(keys(local.maintenance_window_overrides), local.cluster_key)
+        ? local.maintenance_window_overrides[local.cluster_key]["maintenance_end_time"]
+        : var.maintenance_end_time
 
-  cluster_key                             = "${var.project_id}-${local.cluster_name}"
+      recurrence = length(local.maintenance_window_overrides) > 0 && contains(keys(local.maintenance_window_overrides), local.cluster_key)
+        ? local.maintenance_window_overrides[local.cluster_key]["maintenance_recurrence"]
+        : var.maintenance_recurrence
+    }
+  }
+}
