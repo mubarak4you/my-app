@@ -257,7 +257,11 @@ resource "google_container_cluster" "primary" {
       enable_integrity_monitoring = true
     }
   }
-
+  node_pool_defaults {
+    node_config_details {
+      insecure_kubelet_readonly_port_enabled = "FALSE"
+    }
+  }
   notification_config {
     pubsub {
       enabled = true
