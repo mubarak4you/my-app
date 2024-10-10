@@ -1,3 +1,12 @@
+╷
+│ Error: Unsupported block type
+│ 
+│   on cluster.tf line 261, in resource "google_container_cluster" "primary":
+│  261:     node_config_details {
+│ 
+│ Blocks of type "node_config_details" are not expected here.
+
+
 /******************************************
   Create Cluster
  *****************************************/
