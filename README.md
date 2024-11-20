@@ -1,52 +1,74 @@
 #!/bin/bash
 
-# Number of iterations for the load test
+# Number of iterations for the stress test
 ITERATIONS=50
-# Namespace to perform the test
-NAMESPACE="rbac-load-test"
 
-# Function to create roles and bindings
-create_rbac_resources() {
-    ROLE_NAME="test-role-$RANDOM"
-    ROLEBINDING_NAME="test-rolebinding-$RANDOM"
-    echo "Creating Role: $ROLE_NAME and RoleBinding: $ROLEBINDING_NAME in namespace $NAMESPACE"
-    
-    # Create a Role with read-only access to pods
-    kubectl create role $ROLE_NAME --verb=get --verb=list --verb=watch --resource=pods -n $NAMESPACE
-    
-    # Create a RoleBinding for the Role to bind to the default service account
-    kubectl create rolebinding $ROLEBINDING_NAME --role=$ROLE_NAME --serviceaccount=$NAMESPACE:default -n $NAMESPACE
+# Temporary RBACDefinition YAML file
+TEMP_RBAC_FILE="temp_rbac_definition.yaml"
+
+# Namespaces to be created
+NAMESPACES=("api" "web")
+
+# Function to create namespaces
+create_namespaces() {
+  echo "Creating namespaces..."
+  for ns in "${NAMESPACES[@]}"; do
+    kubectl create namespace $ns || echo "Namespace $ns already exists"
+  done
 }
 
-# Function to delete roles and bindings
-delete_rbac_resources() {
-    ROLE_NAME=$1
-    ROLEBINDING_NAME=$2
-    echo "Deleting Role: $ROLE_NAME and RoleBinding: $ROLEBINDING_NAME in namespace $NAMESPACE"
-    
-    kubectl delete role $ROLE_NAME -n $NAMESPACE
-    kubectl delete rolebinding $ROLEBINDING_NAME -n $NAMESPACE
+# Function to delete namespaces after the test
+delete_namespaces() {
+  echo "Deleting namespaces..."
+  for ns in "${NAMESPACES[@]}"; do
+    kubectl delete namespace $ns || echo "Failed to delete namespace $ns"
+  done
 }
 
-# Ensure the namespace exists
-kubectl create namespace $NAMESPACE || true
+# RBACDefinition template
+generate_rbac_definition() {
+  cat <<EOF > $TEMP_RBAC_FILE
+apiVersion: rbacmanager.reactiveops.io/v1beta1
+kind: RBACDefinition
+metadata:
+  name: user-access-$1
+rbacBindings:
+  - name: user-$1
+    subjects:
+      - kind: User
+        name: user$1@example.com
+    roleBindings:
+      - namespace: api
+        clusterRole: view
+      - namespace: web
+        clusterRole: edit
+EOF
+}
 
-for ((i=1; i<=ITERATIONS; i++))
-do
-    echo "Iteration $i/$ITERATIONS"
-    
-    # Create resources
-    create_rbac_resources
-    ROLE_NAME="test-role-$RANDOM"
-    ROLEBINDING_NAME="test-rolebinding-$RANDOM"
+# Create required namespaces
+create_namespaces
 
-    # Give some time between operations (optional)
-    sleep 0.5
+# Stress test loop
+for ((i=1; i<=ITERATIONS; i++)); do
+  echo "Iteration $i/$ITERATIONS"
 
-    # Delete resources
-    delete_rbac_resources $ROLE_NAME $ROLEBINDING_NAME
+  # Generate a unique RBACDefinition for this iteration
+  generate_rbac_definition $i
+
+  # Apply the RBACDefinition
+  kubectl apply -f $TEMP_RBAC_FILE
+
+  # Give some time for the RBAC manager to process (optional)
+  sleep 0.5
+
+  # Delete the RBACDefinition
+  kubectl delete -f $TEMP_RBAC_FILE
 done
 
-# Clean up namespace
-kubectl delete namespace $NAMESPACE
-echo "Load test completed."
+# Cleanup
+rm -f $TEMP_RBAC_FILE
+
+# Delete namespaces after the test
+delete_namespaces
+
+echo "RBAC stress test completed."
