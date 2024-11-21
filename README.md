@@ -3,11 +3,17 @@
 # Number of iterations for the stress test
 ITERATIONS=50
 
+# Number of bindings per RBACDefinition to increase memory usage
+BINDINGS_PER_DEFINITION=50
+
 # Temporary RBACDefinition YAML file
 TEMP_RBAC_FILE="temp_rbac_definition.yaml"
 
 # Namespaces to be created
-NAMESPACES=("api" "web")
+NAMESPACES=()
+for i in $(seq 1 $BINDINGS_PER_DEFINITION); do
+  NAMESPACES+=("test-ns-$i")
+done
 
 # Function to create namespaces
 create_namespaces() {
@@ -25,24 +31,30 @@ delete_namespaces() {
   done
 }
 
-# RBACDefinition template
+# RBACDefinition template generator with multiple bindings
 generate_rbac_definition() {
+  local index=$1
   cat <<EOF > $TEMP_RBAC_FILE
 apiVersion: rbacmanager.reactiveops.io/v1beta1
 kind: RBACDefinition
 metadata:
-  name: user-access-$1
+  name: user-access-$index
 rbacBindings:
-  - name: user-$1
+EOF
+
+  for i in $(seq 1 $BINDINGS_PER_DEFINITION); do
+    cat <<EOF >> $TEMP_RBAC_FILE
+  - name: user-$index-$i
     subjects:
       - kind: User
-        name: user$1@example.com
+        name: user$index-$i@example.com
     roleBindings:
-      - namespace: api
+      - namespace: test-ns-$i
         clusterRole: view
-      - namespace: web
+      - namespace: test-ns-$i
         clusterRole: edit
 EOF
+  done
 }
 
 # Create required namespaces
