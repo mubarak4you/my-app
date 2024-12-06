@@ -1,39 +1,97 @@
-#!/bin/bash
+etoke-306
 
-# Grafana credentials and URL
-USERNAME="admin"
-PASSWORD="<your-admin-password>"
-DASHBOARD_URL="<your-dashboard-full-url>"
+Optimize cost and performance - grafana
 
-# Sequential Requests Function
-run_sequential_requests() {
-    local request_count=$1
-    echo "Starting sequential requests (${request_count} requests)..."
-    for i in $(seq 1 $request_count); do
-        curl -u "$USERNAME:$PASSWORD" -o /dev/null -s -w "Sequential Request $i: HTTP status: %{http_code}\n" "$DASHBOARD_URL"
-    done
-    echo "Sequential requests completed."
-}
+Memory
 
-# Concurrent Requests Function
-run_concurrent_requests() {
-    local request_count=$1
-    local concurrency=$2
-    echo "Starting concurrent requests (${request_count} requests, ${concurrency} concurrent)..."
-    seq 1 $request_count | xargs -n1 -P$concurrency -I{} curl -u "$USERNAME:$PASSWORD" -o /dev/null -s -w "Concurrent Request {}: HTTP status: %{http_code}\n" "$DASHBOARD_URL"
-    echo "Concurrent requests completed."
-}
+The graph here shows the baseline memory usage of the grafana pod over the last hour, the memory usage appears relatively stable at around 74 MiB until the Total pod memory usage and Pod CPU usage (mcores) dashboards are opened on the browser. 
 
-# Main script execution
-echo "Starting Grafana Stress Test..."
+￼
 
-# Configure the number of requests
-SEQUENTIAL_REQUEST_COUNT=50   # Number of sequential requests
-CONCURRENT_REQUEST_COUNT=100  # Number of total concurrent requests
-CONCURRENCY_LEVEL=10          # Number of parallel connections for concurrent requests
+A stress test was then performed with a script that simply sends http request to a specific grafana dashboard using curl. 
+The script requires grafana admin credentials to authentic .
 
-# Run stress tests
-run_sequential_requests $SEQUENTIAL_REQUEST_COUNT
-run_concurrent_requests $CONCURRENT_REQUEST_COUNT $CONCURRENCY_LEVEL
+Sequential request and Concurrent request are both set to 25.
 
-echo "Grafana Stress Test Completed."
+Sequential request sends 25 requests to the dashboards one after the other
+(One request at.a time no overlapping)
+which then triggers the dashboard to make a request to Prometheus by scraping the metrics. 
+
+Concurrent request sends 25 of the same request to the dashboard till the sequential request is met which is 5 times.
+(Overlapping requests, simulating multiple users accessing the dashboard simultaneously) 
+which then triggers the dashboard to make a request to Prometheus by scraping the metrics. 
+  Carried out another test
+Sequential request and Concurrent request are both set to 5.
+
+Sequential request sends 5 requests to the dashboards one after the other
+(One request at.a time no overlapping)
+which then triggers the dashboard to make a request to Prometheus by scraping the metrics. 
+
+Concurrent request sends 5 of the same request to the dashboard till the sequential request is met which is 5 times.
+(Overlapping requests, simulating multiple users accessing the dashboard simultaneously) 
+which then triggers the dashboard to make a request to Prometheus by scraping the metrics.   
+Carried out another test
+By manually opening 5 different dashboard pages on the browser and refreshed each pages to trigger the dashboards being loaded.
+
+￼
+
+Results
+Based on the various stress test we can see the spikes on the Memory usage not go over 108 MiB, so from the result of the test we can set the Memory Limit for the Grafana pod to about 130 MiB and Memory request to 85 MiB, giving a buffer for load and unexpected spikes.
+
+Setting the Memory Request to 
+    resources:
+      requests:
+        memory: “80Mi”
+
+
+Setting the Memory Limit to 
+    resources:
+      limits:
+        memory: “130Mi”
+
+
+
+Cpu
+
+The graph here shows the baseline CPU usage of the grafana pod over the last hour, the CPU usage appears relatively stable at around 1.5mcores until the the Total pod memory usage and Pod CPU usage (mcores) dashboards are opened on the browser. 
+
+￼
+
+Results
+Based on the same stress test we can see the spikes on the CPU with the CPU usage not go over 5.5mcores, so from the result of the test we can set the CPU Limit for the Grafana pod to about 7mcores and CPU request to 3mcores, giving a buffer for load and unexpected spikes.
+ 
+￼
+
+Based on the graph after the stress test.
+
+Setting the CPU Request to 
+    resources:
+      requests:
+        cpu: “8m"
+
+
+Setting the CPU Limit to 
+    resources:
+      limits:
+        cpu: “20m"
+
+
+Mem and CPU 
+    resources:
+      limits:
+        cpu: “20m"
+        memory: “130Mi"
+      requests:
+        cpu: “8m"
+        memory: “80Mi"
+
+After setting the values above in the grafana configuration and created a new cluster, I noticed the grafana webpage and dashboard taking much longer to load up so I had to bump up the mem and cpu.
+
+    resources:
+      limits:
+        cpu: 60m
+        memory: 180Mi
+      requests:
+        cpu: 40m
+        memory: 100Mi
+    persistence:
