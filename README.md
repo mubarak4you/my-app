@@ -1,97 +1,79 @@
-etoke-306
+Optimization of Cost and Performance: Grafana Resource Analysis
+Memory Usage
 
-Optimize cost and performance - grafana
+The baseline memory usage of the Grafana pod, as observed over the last hour, is stable at approximately 74 MiB. However, memory usage spikes when the "Total Pod Memory Usage" and "Pod CPU Usage (mcores)" dashboards are opened in the browser.
+Stress Testing
 
-Memory
+    Test 1:
+        Sequential Requests:
+            Sent 25 HTTP requests one after the other using a curl script that authenticates with Grafana admin credentials.
+            Each request triggers a Prometheus scrape to retrieve metrics.
+        Concurrent Requests:
+            Sent 25 overlapping HTTP requests to the dashboard, simulating multiple users accessing the dashboard simultaneously.
+            The sequential request target was met five times.
 
-The graph here shows the baseline memory usage of the grafana pod over the last hour, the memory usage appears relatively stable at around 74 MiB until the Total pod memory usage and Pod CPU usage (mcores) dashboards are opened on the browser. 
+    Test 2:
+        Similar tests were performed with Sequential and Concurrent Requests, but with only 5 requests each.
 
-￼
+    Test 3:
+        Opened 5 dashboard pages manually in the browser and refreshed each page to trigger loading and Prometheus metric scraping.
 
-A stress test was then performed with a script that simply sends http request to a specific grafana dashboard using curl. 
-The script requires grafana admin credentials to authentic .
+Results:
 
-Sequential request and Concurrent request are both set to 25.
+    Memory usage spiked but remained below 108 MiB across all tests.
+    Recommended settings:
+        Memory Request: 85 MiB
+        Memory Limit: 130 MiB
 
-Sequential request sends 25 requests to the dashboards one after the other
-(One request at.a time no overlapping)
-which then triggers the dashboard to make a request to Prometheus by scraping the metrics. 
+Configuration:
 
-Concurrent request sends 25 of the same request to the dashboard till the sequential request is met which is 5 times.
-(Overlapping requests, simulating multiple users accessing the dashboard simultaneously) 
-which then triggers the dashboard to make a request to Prometheus by scraping the metrics. 
-  Carried out another test
-Sequential request and Concurrent request are both set to 5.
+resources:
+  requests:
+    memory: "85Mi"
+  limits:
+    memory: "130Mi"
 
-Sequential request sends 5 requests to the dashboards one after the other
-(One request at.a time no overlapping)
-which then triggers the dashboard to make a request to Prometheus by scraping the metrics. 
+CPU Usage
 
-Concurrent request sends 5 of the same request to the dashboard till the sequential request is met which is 5 times.
-(Overlapping requests, simulating multiple users accessing the dashboard simultaneously) 
-which then triggers the dashboard to make a request to Prometheus by scraping the metrics.   
-Carried out another test
-By manually opening 5 different dashboard pages on the browser and refreshed each pages to trigger the dashboards being loaded.
+The baseline CPU usage of the Grafana pod is stable at approximately 1.5 mcores but increases significantly when dashboards are accessed in the browser.
 
-￼
+Results:
 
-Results
-Based on the various stress test we can see the spikes on the Memory usage not go over 108 MiB, so from the result of the test we can set the Memory Limit for the Grafana pod to about 130 MiB and Memory request to 85 MiB, giving a buffer for load and unexpected spikes.
+    CPU usage spiked but did not exceed 5.5 mcores during testing.
+    Recommended settings:
+        CPU Request: 3 mcores
+        CPU Limit: 7 mcores
 
-Setting the Memory Request to 
-    resources:
-      requests:
-        memory: “80Mi”
+Configuration:
 
+resources:
+  requests:
+    cpu: "3m"
+  limits:
+    cpu: "7m"
 
-Setting the Memory Limit to 
-    resources:
-      limits:
-        memory: “130Mi”
+Combined Memory and CPU Recommendations
 
+Initial Resource Settings:
 
+resources:
+  limits:
+    cpu: "20m"
+    memory: "130Mi"
+  requests:
+    cpu: "8m"
+    memory: "80Mi"
 
-Cpu
+Observation:
+After applying these values in the Grafana configuration and creating a new cluster, the Grafana web interface and dashboards exhibited slower load times.
 
-The graph here shows the baseline CPU usage of the grafana pod over the last hour, the CPU usage appears relatively stable at around 1.5mcores until the the Total pod memory usage and Pod CPU usage (mcores) dashboards are opened on the browser. 
+Adjusted Resource Settings:
 
-￼
-
-Results
-Based on the same stress test we can see the spikes on the CPU with the CPU usage not go over 5.5mcores, so from the result of the test we can set the CPU Limit for the Grafana pod to about 7mcores and CPU request to 3mcores, giving a buffer for load and unexpected spikes.
- 
-￼
-
-Based on the graph after the stress test.
-
-Setting the CPU Request to 
-    resources:
-      requests:
-        cpu: “8m"
-
-
-Setting the CPU Limit to 
-    resources:
-      limits:
-        cpu: “20m"
-
-
-Mem and CPU 
-    resources:
-      limits:
-        cpu: “20m"
-        memory: “130Mi"
-      requests:
-        cpu: “8m"
-        memory: “80Mi"
-
-After setting the values above in the grafana configuration and created a new cluster, I noticed the grafana webpage and dashboard taking much longer to load up so I had to bump up the mem and cpu.
-
-    resources:
-      limits:
-        cpu: 60m
-        memory: 180Mi
-      requests:
-        cpu: 40m
-        memory: 100Mi
-    persistence:
+resources:
+  limits:
+    cpu: "60m"
+    memory: "180Mi"
+  requests:
+    cpu: "40m"
+    memory: "100Mi"
+persistence:
