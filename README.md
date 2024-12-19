@@ -1,19 +1,37 @@
-A comprehensive stress test was conducted to evaluate the performance and resource utilization of the OCI ingress controller pods. During this test, 50 ingress classes were created simultaneously within a one-minute window. The results revealed noticeable spikes in both memory usage and CPU utilization, as observed in the respective monitoring graphs for Memory Usage and CPU Usage.
-
-Based on the analysis of these results, the following resource allocation settings are recommended for optimal performance:
-
-These configurations aim to ensure efficient resource utilization while maintaining the stability and performance of the OCI ingress controller pods under high-load conditions.
-
-
-
-
-
-Horizontal Pod Autoscaler (HPA) and Vertical Pod Autoscaler (VPA) Analysis
-
-Following an in-depth evaluation and testing, it was observed that requests directed to the OCI ingress controller pods were being processed by only one of the two available native controller pods. This behavior indicates that the system is not configured as an active-active setup. Consequently, the Horizontal Pod Autoscaler (HPA) is not required, as there is no need for dynamic scaling based on load.
-
-Similarly, the Vertical Pod Autoscaler (VPA) does not need to be configured. The baseline analysis of CPU and memory utilization shows that the allocated resources are sufficient to handle workloads, even under stress test conditions. The ingress controller pod demonstrated the ability to manage requests efficiently without exceeding its resource limits.
-
-Additionally, the default Helm chart configuration does not include scaling for multiple replicas. However, it does provide for failover redundancy. In the event one pod becomes unavailable due to resource exhaustion, the system is configured with two replicas, ensuring that the second pod seamlessly takes over operations.
-
-
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    oci-native-ingress.oraclecloud.com/backend-tls-enabled: "false"
+    oci-native-ingress.oraclecloud.com/healthcheck-force-plaintext: "true"
+    oci-native-ingress.oraclecloud.com/healthcheck-path: /api/health
+    oci-native-ingress.oraclecloud.com/healthcheck-protocol: HTTP
+    oci-native-ingress.oraclecloud.com/https-listener-port: "443"
+    oci-native-ingress.oraclecloud.com/protocol: HTTP2
+  finalizers:
+  - oci.oraclecloud.com/ingress-controller-protection
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: oke-platform-ingress
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: oke-platform-ingress
+    app.kubernetes.io/version: 1.0.0
+  name: agrafana-ingress
+  namespace: kube-system
+spec:
+  ingressClassName: grafana-oke-mbkhpa-np-iad-go0v
+  rules:
+  - host: agrafana-oke-mbkhpa-np-iad-go0v.ebiz.verizon.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: grafana
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - agrafana-oke-mbkhpa-np-iad-go0v.ebiz.verizon.com
+    secretName: grafana-oke-mbkhpa-np-iad-go0v
