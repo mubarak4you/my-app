@@ -1,3 +1,26 @@
+#!/bin/bash
+
+# Number of Ingresses to create
+NUM_INGRESSES=10
+
+# Base name and host
+BASE_NAME="agrafana-ingress"
+BASE_HOST="oke-mbkhpa-np-iad-go0v.ebiz.verizon.com"
+
+# Namespace for the Ingress
+NAMESPACE="kube-system"
+
+# Output directory
+OUTPUT_DIR="./ingresses"
+mkdir -p "$OUTPUT_DIR"
+
+for i in $(seq 1 $NUM_INGRESSES); do
+  # Generate unique name and host
+  NAME="${i}-${BASE_NAME}"
+  HOST="${i}-${BASE_HOST}"
+
+  # Create Ingress YAML
+  cat <<EOF > "${OUTPUT_DIR}/${NAME}.yaml"
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -16,12 +39,12 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: oke-platform-ingress
     app.kubernetes.io/version: 1.0.0
-  name: agrafana-ingress
-  namespace: kube-system
+  name: $NAME
+  namespace: $NAMESPACE
 spec:
   ingressClassName: grafana-oke-mbkhpa-np-iad-go0v
   rules:
-  - host: agrafana-oke-mbkhpa-np-iad-go0v.ebiz.verizon.com
+  - host: $HOST
     http:
       paths:
       - backend:
@@ -33,5 +56,9 @@ spec:
         pathType: Prefix
   tls:
   - hosts:
-    - agrafana-oke-mbkhpa-np-iad-go0v.ebiz.verizon.com
+    - $HOST
     secretName: grafana-oke-mbkhpa-np-iad-go0v
+EOF
+
+  echo "Created ${OUTPUT_DIR}/${NAME}.yaml"
+done
