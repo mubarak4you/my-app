@@ -107,3 +107,18 @@ For freeform-tags any key and value can be used.
 
 
 
+
+
+Use this below as the example configuration.
+
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  annotations:
+    oci-native-ingress.oraclecloud.com/defined-tags: '{"Load-Balancer-tags": {"Environment":
+      "NONPROD", "Owner": "mubarak.alabi@one.verizon.com", "UserID": "alabimu", "VSAD":
+      "GO0V", "Zone": "GZ"}}'
+    oci-native-ingress.oraclecloud.com/freeform-tags: '{"ClusterName": "oke.main.np.iad.go0v"}'
+    oci-native-ingress.oraclecloud.com/id: ocid1.loadbalancer.oc1.iad.aaaaaaaa2kxwekos4f63typn3cctvubwjykzirjdkg7bhzknstv6thm72v3q
+    
+
