@@ -1,25 +1,34 @@
----
-id: nsg-tagging
-title: Load Balancer NSG and Tagging
----
+### Load Balancer Network Security Groups (NSG) and Tagging
 
-# Ingress Network Security Groups (NSG) and Tagging
+---
 
 ## Introduction
-This guide explains how to configure **Ingress Network Security Groups (NSG)** and **Tagging** for LoadBalancers managed by OCI Native Ingress Controller (NIC).
+This document provides detailed guidance on configuring **Ingress Network Security Groups (NSG)** and **Tagging** for Load Balancers managed by the OCI Native Ingress Controller (NIC).
 
 ---
-## Network Security Groups (NSG) Support
-Network Security Groups (NSGs) act like a virtual firewall to control traffic to and from your LoadBalancer.
 
-#### How to configure load balancer NSG with OCI  Native Ingress Controller (NIC):
-1. Use the annotation `oci-native-ingress.oraclecloud.com/network-security-group-ids` in the `IngressClass` resource.
-   - Name of the NSG currently available: **MASTER-HTTPS-ALL**
-   - OCID for MASTER-HTTPS-ALL NSG: `ocid1.networksecuritygroup.oc1.iad.aaaaaaaalp3w4xhgmkbov2x663hf4hke3v4rs4ftvw3nhanawx4pwkcadqda`
-2. If multiple Network Security Groups (NSGs) are required, provide their OCIDs as a comma-separated list. For example `oci-native-ingress.oraclecloud.com/network-security-group-ids: ocid1.networksecuritygroup.oc1.abc,ocid1.networksecuritygroup.oc1.xyz`
-3. The LoadBalancer associated with the IngressClass will automatically be added to the specified NSGs.
+## Network Security Groups (NSG)
 
-#### Example Configuration for one NSG on an IngressClass resource:
+Network Security Groups (NSGs) function as virtual firewalls, enabling precise control over ingress and egress traffic for your Load Balancers.
+
+### Configuring Load Balancer NSGs with OCI Native Ingress Controller (NIC)
+To configure NSGs for Load Balancers associated with the OCI NIC, use the following annotation in the `IngressClass` resource:
+
+**Annotation:**
+`oci-native-ingress.oraclecloud.com/network-security-group-ids`
+
+#### Key Details:
+- **Example NSG Name:** `MASTER-HTTPS-ALL`
+- **OCID for `MASTER-HTTPS-ALL` NSG:** `ocid1.networksecuritygroup.oc1.iad.aaaaaaaalp3w4xhgmkbov2x663hf4hke3v4rs4ftvw3nhanawx4pwkcadqda`
+
+#### Steps:
+1. Add the OCID of the desired NSG to the annotation in your `IngressClass` configuration.
+2. If multiple NSGs are required, list their OCIDs as a comma-separated string.
+3. Once configured, the Load Balancer associated with the specified `IngressClass` will be automatically added to the designated NSGs.
+
+#### Example Configuration:
+Below is an example configuration for associating a Load Balancer with a single NSG:
+
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: IngressClass
@@ -27,39 +36,43 @@ metadata:
   annotations:
     oci-native-ingress.oraclecloud.com/network-security-group-ids: ocid1.networksecuritygroup.oc1.iad.aaaaaaaalp3w4xhgmkbov2x663hf4hke3v4rs4ftvw3nhanawx4pwkcadqda
 ```
+
+For multiple NSGs, the annotation would look like this:
+```yaml
+oci-native-ingress.oraclecloud.com/network-security-group-ids: ocid1.networksecuritygroup.oc1.abc,ocid1.networksecuritygroup.oc1.xyz
+```
+
 ---
 
-## Tagging Support
+## Tagging
 
-Tagging helps you organize and manage your resources by adding metadata in the form of **Defined Tags** and **Freeform Tags**.
+Tagging allows for efficient organization and management of OCI resources by applying metadata through **Defined Tags** or **Freeform Tags**.
 
-##### Types of Tags:
-- **Defined Tags:** Predefined tags with specific Namespaces and Tag keys.
-- **Freeform Tags:** Simple key-value pairs defined by the user.
+### Types of Tags:
+1. **Defined Tags**: Predefined tags with specific namespaces and keys.
+2. **Freeform Tags**: User-defined key-value pairs.
 
-##### How to Use Tagging with OCI NIC:
-1. Use the annotations below in the **IngressClass** resource to apply tags.
-   - `oci-native-ingress.oraclecloud.com/defined-tags`: JSON string for defined tags.
-   - `oci-native-ingress.oraclecloud.com/freeform-tags`: JSON string for freeform tags.
-2. Wrap the JSON strings in single quotes (`'`).
-3. If no tags are specified, they default to `{}`.
+### Using Tags with OCI Native Ingress Controller
+To apply tags, add the following annotations to the `IngressClass` resource:
 
-**Defined Tags**
-The tag namespace available and provided by the Oracle Team is called **Load-Balancer-tags**, and the tag keys available are:
+- **Defined Tags Annotation:** `oci-native-ingress.oraclecloud.com/defined-tags`
+- **Freeform Tags Annotation:** `oci-native-ingress.oraclecloud.com/freeform-tags`
+
+#### Important Notes:
+- Wrap JSON strings for tags in single quotes (`'`).
+- If no tags are specified, they default to `{}`.
+
+#### Available Defined Tags:
+The Oracle team provides a namespace called **Load-Balancer-tags**. The following keys are available within this namespace and must be used for the changes to take effect:
 - **Environment**
 - **Owner**
 - **UserID**
 - **VSAD**
 - **Zone**
 
-:::note 
-The following Tag Keys must be used, or the changes will not reflect.
-:::
-
-**Freeform Tags**
-Any key and value can be used.
-
 #### Example Configuration:
+Below is an example of applying both defined and freeform tags:
+
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: IngressClass
@@ -72,12 +85,14 @@ metadata:
     oci-native-ingress.oraclecloud.com/network-security-group-ids: ocid1.networksecuritygroup.oc1.iad.aaaaaaaalp3w4xhgmkbov2x663hf4hke3v4rs4ftvw3nhanawx4pwkcadqda
 ```
 
-:::note 
-Changing a tag in the annotations triggers a reconciliation of tags on the LoadBalancer.
-Defined tags using [Tag Variables](https://docs.oracle.com/en-us/iaas/Content/Tagging/Tasks/usingtagvariables.htm#Using_Tag_Variables) are only applied if the tag does not already exist on the LoadBalancer.
-:::
+#### Behavior:
+- Changes to tags in the annotations trigger a reconciliation of tags on the Load Balancer.
+- **Defined Tags** utilizing [Tag Variables](https://docs.oracle.com/en-us/iaas/Content/Tagging/Tasks/usingtagvariables.htm#Using_Tag_Variables) are applied only if the tag is not already present on the Load Balancer.
 
 ---
 
-##### Additional Resources
+## Additional Resources
 - [Oracle Tagging Overview](https://docs.oracle.com/en-us/iaas/Content/Tagging/Concepts/taggingoverview.htm)
+
+---
+
