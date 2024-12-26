@@ -1,6 +1,9 @@
-### Load Balancer Network Security Groups (NSG) and Tagging
-
 ---
+id: nsg-tagging
+title: Load Balancer NSG and Tagging
+---
+
+# Ingress Network Security Groups (NSG) and Tagging
 
 ## Introduction
 This document provides detailed guidance on configuring **Ingress Network Security Groups (NSG)** and **Tagging** for Load Balancers managed by the OCI Native Ingress Controller (NIC).
@@ -58,17 +61,22 @@ To apply tags, add the following annotations to the `IngressClass` resource:
 - **Defined Tags Annotation:** `oci-native-ingress.oraclecloud.com/defined-tags`
 - **Freeform Tags Annotation:** `oci-native-ingress.oraclecloud.com/freeform-tags`
 
-#### Important Notes:
-- Wrap JSON strings for tags in single quotes (`'`).
-- If no tags are specified, they default to `{}`.
+:::note 
+Wrap JSON strings for tags in single quotes (`'`).
+If no tags are specified, they default to `{}`.
+:::
 
 #### Available Defined Tags:
-The Oracle team provides a namespace called **Load-Balancer-tags**. The following keys are available within this namespace and must be used for the changes to take effect:
+The Oracle team provides a namespace called **Load-Balancer-tags** and the following keys are available within this namespace. 
 - **Environment**
 - **Owner**
 - **UserID**
 - **VSAD**
 - **Zone**
+
+:::note
+These keys must be used for the changes to take effect
+:::
 
 #### Example Configuration:
 Below is an example of applying both defined and freeform tags:
@@ -95,4 +103,3 @@ metadata:
 - [Oracle Tagging Overview](https://docs.oracle.com/en-us/iaas/Content/Tagging/Concepts/taggingoverview.htm)
 
 ---
-
