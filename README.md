@@ -50,9 +50,9 @@ Application teams should verify that they are authorized to access the Oracle Ce
   :::
  
 
-### Step-2: Create and Apply IngressClassParameters and IngressClass resources
-1. Create an IngressClassParameters resource as below in your application namespace to specify details of the OCI load balancer to create for the OCI native ingress controller.
-   This is the namespace scoped custom resource.
+### Step-2: Create and Apply IngressClassParameters resource
+Create an IngressClassParameters resource as below in your application namespace to specify details of the OCI load balancer to create for the OCI native ingress controller.
+This is the namespace scoped custom resource.
 
 ```yaml
 apiVersion: "ingress.oraclecloud.com/v1beta1"
@@ -71,7 +71,8 @@ spec:
   - loadBalancerName: "lb-name" is the name given to the new load balancer.
   - isPrivate: true (Only private internal load balancers are allowed). 
 
-2. Create an IngressClass resource as below. OCI native ingress controller reads this resource and requests for the creation of the OCI load balancer. IngressClass is a cluster scope resource. The OCI load balancer should be created at this point.
+### Step-3: Create and Apply IngressClass resource
+Create an IngressClass resource as below. OCI native ingress controller reads this resource and requests for the creation of the OCI load balancer. IngressClass is a cluster scope resource. The OCI load balancer should be created at this point.
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: IngressClass
@@ -80,6 +81,11 @@ metadata:
   annotations:
     ingressclass.kubernetes.io/is-default-class: "true"
     oci-native-ingress.oraclecloud.com/network-security-groups: "ocid1.networksecuritygroup.oc1.iad.aaaaaaaalp3w4xhgmkbov2x663hf4hke3v4rs4ftvw3nhanawx4pwkcadqda"
+    oci-native-ingress.oraclecloud.com/network-security-group-ids: "ocid1.networksecuritygroup.oc1.iad.aaaaaaaalp3w4xhgmkbov2x663hf4hke3v4rs4ftvw3nhanawx4pwkcadqda"
+    oci-native-ingress.oraclecloud.com/defined-tags: '{"Load-Balancer-tags": {"Environment":
+      "NONPROD", "Owner": "test.user@one.verizon.com", "UserID": "userte", "VSAD":
+      "GO0V", "Zone": "GZ"}}'
+    oci-native-ingress.oraclecloud.com/freeform-tags: '{"ClusterName": "oke.testcluster.np.iad.go0v"}'
 spec:
   controller: oci.oraclecloud.com/native-ingress-controller
   parameters:
@@ -94,102 +100,15 @@ spec:
   - controller: oci.oraclecloud.com/native-ingress-controller specifies the OCI native ingress controller as the ingress controller to use.
   - namespace: "ns-name" is the name of the namespace containing the parameters to use when .spec.parameters.scope is set to Namespace.
   - name: "icp-name" is the name of the IngressClassParameters resource that specifies details of the OCI load balancer to create for the OCI native ingress controller. 
+  - oci-native-ingress.oraclecloud.com/network-security-group-ids: is to add Load Balancers associated to the IngressClass to the NSGs. Multiple NSGs can be separated with a comma. 
+    - The OCID for the NSG avaiable in each region.
+    - Non Prod US East = ocid1.networksecuritygroup.oc1.iad.aaaaaaaalp3w4xhgmkbov2x663hf4hke3v4rs4ftvw3nhanawx4pwkcadqda
+    - Non Prod US West = xxxxxxxxxxxxxxxxx
+  - oci-native-ingress.oraclecloud.com/defined-tags: 
+    - xxxxx must be string provided 
+  - oci-native-ingress.oraclecloud.com/freeform-tags: 
 
-#### Network Security Groups (NSG)
-
-Network Security Groups (NSGs) function as virtual firewalls, enabling precise control over ingress and egress traffic for your Load Balancers.
-
-#### Configuring Load Balancer NSGs with OCI Native Ingress Controller (NIC)
-To configure NSGs for Load Balancers associated with the OCI NIC, use the following annotation in the `IngressClass` resource:
-
-**Annotation:**
-`oci-native-ingress.oraclecloud.com/network-security-group-ids`
-
-##### Key Details:
-- **Example NSG Name:** `MASTER-HTTPS-ALL`
-- **OCID for `MASTER-HTTPS-ALL` NSG:** `ocid1.networksecuritygroup.oc1.iad.aaaaaaaalp3w4xhgmkbov2x663hf4hke3v4rs4ftvw3nhanawx4pwkcadqda`
-
-##### Steps:
-1. Add the OCID of the desired NSG to the annotation in your `IngressClass` configuration.
-2. If multiple NSGs are required, list their OCIDs as a comma-separated string.
-3. Once configured, the Load Balancer associated with the specified `IngressClass` will be automatically added to the designated NSGs.
-
-#### Example Configuration:
-Below is an example configuration for associating a Load Balancer with a single NSG:
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: IngressClass
-metadata:
-  annotations:
-    oci-native-ingress.oraclecloud.com/network-security-group-ids: ocid1.networksecuritygroup.oc1.iad.aaaaaaaalp3w4xhgmkbov2x663hf4hke3v4rs4ftvw3nhanawx4pwkcadqda
-```
-
-For multiple NSGs, the annotation would look like this:
-```yaml
-oci-native-ingress.oraclecloud.com/network-security-group-ids: ocid1.networksecuritygroup.oc1.abc,ocid1.networksecuritygroup.oc1.xyz
-```
-
----
-
-#### Tagging
-
-Tagging allows for efficient organization and management of OCI resources by applying metadata through **Defined Tags** or **Freeform Tags**.
-
-##### Types of Tags:
-1. **Defined Tags**: Predefined tags with specific namespaces and keys.
-2. **Freeform Tags**: User-defined key-value pairs.
-
-##### Using Tags with OCI Native Ingress Controller
-To apply tags, add the following annotations to the `IngressClass` resource:
-
-- **Defined Tags Annotation:** `oci-native-ingress.oraclecloud.com/defined-tags`
-- **Freeform Tags Annotation:** `oci-native-ingress.oraclecloud.com/freeform-tags`
-
-:::note 
-Wrap JSON strings for tags in single quotes (`'`).
-If no tags are specified, they default to `{}`.
-:::
-
-#### Available Defined Tags:
-The Oracle team provides a namespace called **Load-Balancer-tags** and the following keys are available within this namespace. 
-- **Environment**
-- **Owner**
-- **UserID**
-- **VSAD**
-- **Zone**
-
-:::note
-These keys must be used for the changes to take effect
-:::
-
-#### Example Configuration:
-Below is an example of applying both defined and freeform tags:
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: IngressClass
-metadata:
-  annotations:
-    oci-native-ingress.oraclecloud.com/defined-tags: '{"Load-Balancer-tags": {"Environment":
-      "NONPROD", "Owner": "test.user@one.verizon.com", "UserID": "userte", "VSAD":
-      "GO0V", "Zone": "GZ"}}'
-    oci-native-ingress.oraclecloud.com/freeform-tags: '{"ClusterName": "oke.testcluster.np.iad.go0v"}'
-    oci-native-ingress.oraclecloud.com/network-security-group-ids: ocid1.networksecuritygroup.oc1.iad.aaaaaaaalp3w4xhgmkbov2x663hf4hke3v4rs4ftvw3nhanawx4pwkcadqda
-```
-
-##### Behavior:
-- Changes to tags in the annotations trigger a reconciliation of tags on the Load Balancer.
-- **Defined Tags** utilizing [Tag Variables](https://docs.oracle.com/en-us/iaas/Content/Tagging/Tasks/usingtagvariables.htm#Using_Tag_Variables) are applied only if the tag is not already present on the Load Balancer.
-
----
-
-##### Additional Resources
-- [Oracle Tagging Overview](https://docs.oracle.com/en-us/iaas/Content/Tagging/Concepts/taggingoverview.htm)
-
----
-
-### Step-3: Create and Apply Ingress resource in your application namespace
+### Step-4: Create and Apply Ingress resource in your application namespace
 Create an Ingress resource as below in your application namespace.  OCI certificate will be created from the kubernetes secret upon creation of this ingress resource. This step also creates a TLS listener, routing policy & backend connectivity to the application.
 
 ```yaml
@@ -226,7 +145,7 @@ spec:
 Oracle's native ingress controller only supports backend services of type NodePort
 ::: 
 
-### Step-4: Register OCI application loadbalancer with the Verizon DNS.
+### Step-5: Register OCI application loadbalancer with the Verizon DNS.
   - Get the ip-address from the ingress resource created in your application namespace. If you do not see an ip-address on your ingress resource, do not proceed and create a support ticket.
   - Go to dns.verizon.com.
   - Open a service request "Add Alias Only".
@@ -236,7 +155,7 @@ Oracle's native ingress controller only supports backend services of type NodePo
   - Save and create the DNS record resolving to the ip-address of your internal OCI load balancer.
   - Use TLD (top level domain) as ebiz.verizon.com for non-production load balancers and verizon.com for production load balancers.
 
-### Step-5: Sanity check for a functional application load balancer.
+### Step-6: Sanity check for a functional application load balancer.
 Below resources should be populated on the left hand side menu of your OCI loadbalancer details page.
 
    - Backend sets.
@@ -246,7 +165,7 @@ Below resources should be populated on the left hand side menu of your OCI loadb
    - MASTER-HTTPS-ALL network security group should be attached to the OCI load balancer.
    - Overall health checks should be "green".
 
-### Step-6: Deleting OCI load balancer resources is recommended before attempting to delete the OKE cluster. 
+### Step-7: Deleting OCI load balancer resources is recommended before attempting to delete the OKE cluster. 
    - Delete the Ingress resource first from application namespace.
    - Delete the IngressClass resource after the ingress Resource.
    - Delete the IngressClassParameters resource.
