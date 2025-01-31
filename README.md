@@ -10,7 +10,7 @@ spec:
         claimName: bv-sample
   containers:
     - name: app
-      image: goovl-zdocker.oneartifactoryprod.verizon.com/containers/cicd/busybox:1.35.0
+      image: gpool-zdocker.oneartifactoryprod.verizon.com/containers/cicd/busybox:1.35.0
       command: ["sleep", "infinity"]
       volumeMounts:
         - mountPath: /tmp
@@ -25,10 +25,10 @@ spec:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
+      resources:  # <-- Moved resources under the container spec
+        requests:
+          cpu: 100m
+          memory: 128Mi
   securityContext:
     fsGroup: 1001
     supplementalGroups: [1001]
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
