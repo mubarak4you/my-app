@@ -1,17 +1,4 @@
 apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: bv-sample
-  namespace: strg
-spec:
-  storageClassName: "oci-bv-verizon"
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 50Gi
----
-apiVersion: v1
 kind: Pod
 metadata:
   name: bv-sample
@@ -40,4 +27,8 @@ spec:
           type: RuntimeDefault
   securityContext:
     fsGroup: 1001
-  supplementalGroups: [1001]
+    supplementalGroups: [1001]
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
