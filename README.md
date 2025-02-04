@@ -1,113 +1,251 @@
-# Use Persistent Disks
+module.exports = {
+  docs: [
+    'introduction',
+    `image-lifecycle-management`,
+    {
+      type: 'category',
+      label: 'EKS Clusters',
+      items: [
+        'platforms/eks/overview',
+        'platforms/eks/architecture',
+        'platforms/eks/quick-start',
+        {
+          type: 'category',
+          label: 'Guides',
+          items: [
+            'platforms/eks/guides/onboarding',
+            'platforms/eks/guides/cluster-creation',
+            'platforms/eks/guides/cluster-life-cycle',
+            'platforms/eks/guides/cicd-node-creation',
+            'platforms/eks/guides/app-deployment',
+            'platforms/eks/guides/migration-automation-util',
+            'platforms/eks/guides/cluster-observability',
+            'platforms/eks/guides/amp-amg',
+            'platforms/eks/guides/cluster-cost',
+            'platforms/eks/guides/troubleshoot-eks',
+            'platforms/eks/guides/httpd-forgerock',
+            'platforms/eks/guides/kubecost-onboarding',
+            'platforms/eks/guides/selfheal-guide',
+            'platforms/eks/guides/istio-userguide',
+            'platforms/eks/guides/efs',
+            'platforms/eks/guides/npd',
+            'platforms/eks/guides/observability-nr',
 
-## Creating a PVC on a Persistent Disk
-
-The CSI plugin enables dynamic provisioning of persistent disks in GKE. The available KMS-encrypted storage classes include:
-
-- **Balanced Persistent Disk (`csi-gce-balanced-cmek`)**: Balanced performance and cost, backed by SSD.
-- **Performance Persistent Disk (`csi-gce-ssd-cmek`)**: High performance for sensitive workloads, backed by SSD.
-- **Standard Persistent Disk (`csi-gce-pd-cmek`)**: Cost-effective, backed by HDD.
-- **Filestore Storage (`csi-gce-filestore-cmek`)**: NFS access for applications requiring multiple reads and writes.
-
-PersistentVolumeClaim (PVC) manifests that specify one of these storage classes will dynamically provision storage for Pods.
-
-### 1. Create a PVC
-This PVC manifest specifies the `csi-gce-balanced-cmek` storage class and requests 50Gi of storage.
-
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: pv-sample
-  namespace: storage
-spec:
-  storageClassName: "csi-gce-balanced-cmek"
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 50Gi
-```
-
-Apply the PVC with:
-```sh
-kubectl apply -f sample-pvc.yaml
-```
-
-### 2. Verify PVC Status
-Check the PVC status:
-```sh
-kubectl get pvc -n storage
-```
-A status of `Pending` indicates the PVC is waiting for a Pod to use the volume.
-
-### 3. Create a Pod with PVC
-This Pod manifest binds the PVC to a persistent volume and mounts it in a container.
-
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: pv-sample
-  namespace: storage
-spec:
-  volumes:
-    - name: pv-sample
-      persistentVolumeClaim:
-        claimName: pv-sample
-  containers:
-    - name: app
-      image: go0v-vzdocker.oneartifactoryprod.verizon.com/containers/cicd/apache:2.4.58
-      command: ["sleep", "infinity"]
-      volumeMounts:
-        - mountPath: /tmp
-          name: pv-sample
-      securityContext:
-        allowPrivilegeEscalation: false
-        capabilities:
-          drop:
-            - "ALL"
-        privileged: false
-        readOnlyRootFilesystem: true
-        runAsNonRoot: true
-        seccompProfile:
-          type: RuntimeDefault
-      resources:
-        requests:
-          cpu: 100m
-          memory: 128Mi
-        limits:
-          cpu: 500m
-          memory: 256Mi
-  securityContext:
-    fsGroup: 1001
-    supplementalGroups: [1001]
-```
-
-Apply the Pod with:
-```sh
-kubectl apply -f sample-pod.yaml
-```
-
-### 4. Verify PVC Binding
-Check if the PVC has been bound to a persistent volume:
-```sh
-kubectl get pvc -n storage
-```
-
-### 5. Verify Pod Usage
-Describe the Pod to confirm it is using the bound PVC:
-```sh
-kubectl describe pod pv-sample -n storage
-```
-
-### 6. Clean Up
-When finished, delete the Pod and PVC:
-```sh
-kubectl delete pod pv-sample -n storage
-kubectl delete pvc pv-sample -n storage
-```
-
-### Note
-Always delete application resources before deleting your GKE cluster to ensure that the CSI Volume Plugin cleans up associated persistent disks properly.
-
+          ]
+        },
+        {
+          type: 'category',
+          label: 'Runbooks',
+          items: [
+            'platforms/eks/guides/runbook-app',
+            'platforms/eks/guides/runbook-admin',
+            'platforms/eks/guides/important-jenkins-job'
+          ]
+        },
+        'platforms/eks/policies',
+        'platforms/eks/support',
+        'platforms/eks/currentIssues/ongoing-issues',
+        {
+          type: 'category',
+          label: 'Releases',
+          items: [
+            'platforms/eks/releases/release',
+            'platforms/eks/releases/bosun-2',
+            'platforms/eks/releases/bosun-3',
+            'platforms/eks/releases/bosun-4',
+            'platforms/eks/releases/bosun-5',
+            'platforms/eks/releases/bosun-6',
+            'platforms/eks/releases/bosun-7',
+            'platforms/eks/releases/bosun-8',
+            'platforms/eks/releases/bosun-9',
+            'platforms/eks/releases/gpu-userguide'
+          ]
+        }
+      ]
+    },
+    {
+      type: 'category',
+      label: 'GKE Clusters',
+      items: [
+        'platforms/gke/overview',
+        'platforms/gke/architecture',
+        {
+          type: 'category',
+          label: 'Cluster Components',
+          items: [
+            'platforms/gke/architecture/networking',
+            'platforms/gke/architecture/storage',
+            'platforms/gke/architecture/autoscaling',
+            'platforms/gke/architecture/security',
+            'platforms/gke/architecture/observability',
+            'platforms/gke/architecture/configuration',
+          ]
+        },
+        {
+          type: 'category',
+          label: 'Guides',
+          items: [
+            'platforms/gke/guides/onboarding',
+            'platforms/gke/guides/manage-cluster',
+            'platforms/gke/guides/app-deployment',
+            'platforms/gke/guides/container-security',
+            'platforms/gke/guides/application-cicd',
+            'platforms/gke/guides/anthos-service-mesh',
+            'platforms/gke/guides/cluster-monitoring',
+            'platforms/gke/guides/cluster-logging',
+            'platforms/gke/guides/policy-enforcement',
+            {
+              type: 'category',
+              label: 'Autoscaling',
+              items: [
+                'platforms/gke/guides/autoscaling/hpa',
+                'platforms/gke/guides/autoscaling/vpa'
+              ]
+             },
+          ]
+        },
+        {
+          type: 'category',
+          label: 'Releases',
+          items: [
+            'platforms/gke/releases/release-schedule',
+            'platforms/gke/releases/release-notes'
+          ]
+        },
+            
+        'platforms/gke/support'
+      ]
+    },
+    {
+      type: 'category',
+      label: 'Openshift Clusters',
+      items: [
+        'platforms/ocp/overview',
+        'platforms/ocp/getting-started',
+        'platforms/ocp/cluster-info',
+        'platforms/ocp/new-features',
+        'platforms/ocp/architecture',
+        'platforms/ocp/quick-start',
+        {
+          type: 'category',
+          label: 'Guides',
+          items: ['platforms/ocp/guides/best-practices', 'platforms/ocp/guides/deploy-app', 'platforms/ocp/guides/commands']
+        },
+        'platforms/ocp/security',
+        'platforms/ocp/support',
+        'platforms/ocp/faq'
+      ]
+    },
+    {
+      type: 'category',
+      label: 'OKE Clusters',
+      items: [
+        'platforms/oke/overview',
+        'platforms/oke/architecture',
+        'platforms/oke/quick-start',
+        {
+          type: 'category',
+          label: 'Cluster Components',
+          items: [
+            'platforms/oke/architecture/networking',
+            'platforms/oke/architecture/storage',
+            'platforms/oke/architecture/autoscaling',
+            'platforms/oke/architecture/security',
+            'platforms/oke/architecture/observability',
+            'platforms/oke/architecture/platform-addons'
+          ]
+        },
+             
+        {
+          type: 'category',
+          label: 'Guides',
+          items: [
+            'platforms/oke/guides/onboarding',
+            'platforms/oke/guides/manage-cluster',
+            'platforms/oke/guides/container-security',
+            'platforms/oke/guides/expose-app',
+            'platforms/oke/guides/storage',
+            {
+              type: 'category',
+              label: 'Observability',
+              items: [
+                'platforms/oke/guides/monitoring/monitoring',
+                'platforms/oke/guides/monitoring/logging'
+              ]
+            },
+            {
+              type: 'category',
+              label: 'Autoscaling',
+              items: [
+                'platforms/oke/guides/autoscaling/hpa',
+                'platforms/oke/guides/autoscaling/vpa',
+                'platforms/oke/guides/autoscaling/ca'
+              ]
+            },
+            'platforms/oke/guides/gitlab-runner'
+          ]
+        },
+        'platforms/oke/support',
+        {
+          type: 'category',
+          label: 'Releases',
+          items: ['platforms/oke/releases/release-schedule', 'platforms/oke/releases/release-notes']
+        }
+      ]
+    },
+    {
+      type: 'category',
+      label: 'Legacy Clusters',
+      items: [
+        'platforms/on-prem/overview',
+        'platforms/on-prem/architecture',
+        'platforms/on-prem/quick-start',
+        {
+          type: 'category',
+          label: 'Guides',
+          items: [
+            'platforms/on-prem/guides/deploy-app',
+            'platforms/on-prem/guides/k8s-devx-deployment',
+            'platforms/on-prem/guides/k8s-nonprod-deployment',
+            'platforms/on-prem/guides/k8s-prod-deployment',
+            'platforms/on-prem/guides/k8s-cicd',
+            'platforms/on-prem/guides/cost',
+            'platforms/on-prem/guides/legacy-firewall',
+            'platforms/on-prem/guides/logging',
+            'platforms/on-prem/guides/monitoring',
+            'platforms/on-prem/guides/httpd-siteminder',
+            'platforms/on-prem/guides/shared-vips',
+            'platforms/on-prem/guides/hpa-overview',
+            'platforms/on-prem/guides/secret-management',
+            'platforms/on-prem/guides/httpd-forgerock',
+            'platforms/on-prem/guides/traefik-v2',
+            'platforms/on-prem/guides/upgrade-reqs-119',
+            'platforms/on-prem/guides/jumpserver'
+          ]
+        },
+        'platforms/on-prem/policies',
+        'platforms/on-prem/patching-schedule',
+        'platforms/on-prem/support'
+      ]
+    },
+    {
+      type: 'category',
+      label: 'Global Guides',
+      items: [
+        'guides/developer-guide',
+        'guides/onboarding-flow',
+        'guides/devx-setup',
+        'guides/artifactory-guide',
+        'guides/docker-overview',
+        'guides/sysdig-overview',
+        'guides/helm-integration',
+        'guides/best-practice-docker-file',
+        'guides/best-practice-deployment-yaml',
+        'guides/common-problems'
+      ]
+    },
+    'policies',
+    'support',
+    'contributing'
+  ]
+};
