@@ -1,38 +1,37 @@
 apiVersion: v1
-kind: Pod
+kind: PersistentVolume
 metadata:
-  name: reader
+  name: PV_NAME
 spec:
-  securityContext:
-    fsGroup: 1001
-    supplementalGroups: [1001]
-  containers:
-  - name: nginx
-    image: nginx:stable-alpine
-    ports:
-    - containerPort: 80
-    volumeMounts:
-    - name: fileserver
-      mountPath: /usr/share/nginx/html
-      readOnly: true
-    securityContext:
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop:
-          - "ALL"
-      privileged: false
-      readOnlyRootFilesystem: true
-      runAsNonRoot: true
-      seccompProfile:
-        type: RuntimeDefault
-    resources:
-      requests:
-        cpu: 100m
-        memory: 128Mi
-      limits:
-        cpu: 500m
-        memory: 256Mi
-  volumes:
-  - name: fileserver
-    persistentVolumeClaim:
-      claimName: fileserver
+  storageClassName: ""
+  capacity:
+    storage: 1Ti
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
+  csi:
+    driver: filestore.csi.storage.gke.io
+    volumeHandle: "modeInstance/FILESTORE_INSTANCE_LOCATION/FILESTORE_INSTANCE_NAME/FILESTORE_SHARE_NAME"
+    volumeAttributes:
+      ip: FILESTORE_INSTANCE_IP
+      volume: FILESTORE_SHARE_NAME
+  claimRef:
+    name: PVC_NAME
+    namespace: NAMESPACE
+    
+    
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: fileserver-pv
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: csi-gce-filestore-cmek
+  csi:
+    driver: filestore.csi.storage.gke.io
+    volumeHandle: "projects/vz-it-np-exhv-sharedvpc-228116/locations/us-east4/instances/gke-sample/volumes/vol1"
