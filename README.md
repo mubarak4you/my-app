@@ -63,7 +63,7 @@ spec:
   csi:
     driver: filestore.csi.storage.gke.io
     #volumeHandle: "modeInstance/FILESTORE_INSTANCE_LOCATION/FILESTORE_INSTANCE_NAME/FILESTORE_SHARE_NAME"
-    volumeHandle: "modeInstance/us-east4/gke-sampl/vol1"
+    volumeHandle: "modeInstance/us-east4/gke-sample/vol1"
     #volumeHandle: "modeInstance/projects/vz-it-np-exhv-sharedvpc-228116/locations/us-east4/instances/gke-sample/volumes/vol1"
     #volumeHandle: "projects/vz-it-np-go0v-dev-gketst-0/locations/us-east4/instances/gke-sample"
     volumeAttributes:
@@ -315,3 +315,8 @@ Events:
   Warning  FailedMount        6m21s (x6 over 6m52s)  kubelet                                MountVolume.MountDevice failed for volume "fileserver-pv" : rpc error: code = Aborted desc = An operation with the given volume key modeInstance/us-east4/gke-sampl/vol1 already exists.
  --- Most likely a long process is still running to completion. Retrying.
   Warning  FailedMount  44s (x3 over 6m52s)  kubelet  MountVolume.MountDevice failed for volume "fileserver-pv" : rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  
+  
+Filestore gke
+gke-sample
+vol1	Feb 6, 2025, 2:06:04 PM	ENTERPRISE	us-east4	NFSv3	192.168.224.66	1 TiB	
