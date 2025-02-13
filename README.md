@@ -1,36 +1,63 @@
 apiVersion: v1
-kind: Pod
+kind: ServiceAccount
 metadata:
-  name: pv-sample
+  name: httpbin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  labels:
+    app: httpbin
+    service: httpbin
 spec:
-  volumes:
-    - name: pv-sample
-      persistentVolumeClaim:
-        claimName: pv-sample
-  containers:
-    - name: app
-      image: go0v-vzdocker.oneartifactoryprod.verizon.com/containers/cicd/apache:2.4.58
-      command: ["sleep", "infinity"]
-      volumeMounts:
-        - mountPath: /tmp
-          name: pv-sample
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8080
+  selector:
+    app: httpbin
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: httpbin
+        version: v1
+    spec:
+      serviceAccountName: httpbin
       securityContext:
-        allowPrivilegeEscalation: false
-        capabilities:
-          drop:
-            - "ALL"
-        privileged: false
-        readOnlyRootFilesystem: true
-        runAsNonRoot: true
-        seccompProfile:
-          type: RuntimeDefault
-      resources:
-        requests:
-          cpu: 100m
-          memory: 128Mi
-        limits:
-          cpu: 500m
-          memory: 256Mi
-  securityContext:
-    fsGroup: 1001
-    supplementalGroups: [1001]
+        fsGroup: 1001
+        supplementalGroups: [1001]
+      containers:
+      - image: docker.io/mccutchen/go-httpbin:v2.15.0
+        imagePullPolicy: IfNotPresent
+        name: httpbin
+        ports:
+        - containerPort: 8080
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - "ALL"
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
