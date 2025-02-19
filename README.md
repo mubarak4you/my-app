@@ -1,88 +1,21 @@
 ---
-id: storage
-title: Use Persistent Disks
+id: filestore
+title: Use Filestore
 ---
 
 The guide describes the typical process for using a Kubernetes volume backed by a CSI driver in GKE.
 
 #### Storage Classes
-You must use one of the KMS-encrypted storage classes listed below. PersistentVolumeClaim (PVC) manifests that specify one of these storage classes will dynamically provision storage for Pods.
+You must use the KMS-encrypted storage class listed below. PersistentVolumeClaim (PVC) manifests that specify this storage class will dynamically provision storage for Pods.
 
-
-- **Balanced Persistent Disk (`csi-gce-balanced-cmek`)**: Balanced performance and cost, backed by SSD.
-- **Performance Persistent Disk (`csi-gce-ssd-cmek`)**: High performance for sensitive workloads, backed by SSD.
-- **Standard Persistent Disk (`csi-gce-pd-cmek`)**: Cost-effective, backed by HDD.
 - **Filestore Storage (`csi-gce-filestore-cmek`)**: NFS access for applications requiring multiple reads and writes.
 
-#### 1. Create a PVC
-This [PVC manifest] specifies the `csi-gce-balanced-cmek` storage class and requests 50Gi of storage.
+#### 1. Create a PersistentVolume (PV)
+This PersistentVolume (PV) resource represents a pre-existing Filestore instance and is required before a PersistentVolumeClaim (PVC) can be created.
 
-```bash
-kubectl apply -f https://gitlab.verizon.com/google-containers/gke-sample-applications/-/raw/main/persistent-disks/sample-pvc.yaml
-```
+The `volumeHandle` uniquely identifies the Filestore instance in GCP, specifying the storage location and volume name. The `volumeAttributes` contain the IP address of the Filestore instance, which is required for connecting to it.
 
-#### 2. Verify PVC Status
-Use `kubectl get pvc` to check the the status of the PVC.
-
-A status of `Pending` indicates the PVC is waiting for a Pod to use the volume.
-
-#### 3. Create a Pod with PVC
-This [Pod manifest] binds the PVC to a persistent volume and mounts it in a container.
-
-```bash
-kubectl apply -f https://gitlab.verizon.com/google-containers/gke-sample-applications/-/raw/main/persistent-disks/sample-pod.yaml
-```
-
-#### 4. Verify PVC Binding
-Use `kubectl get pvc` to check if the PVC has been bound to a persistent volume.
-
-
-#### 5. Verify Pod Usage
-Use `kubectl describe pod pv-sample` to describe the Pod to confirm it is using the bound PVC.
-
-
-#### 6. Clean Up
-When finished, delete the Pod and PVC:
-`kubectl delete pod pv-sample`
-and
-`kubectl delete pvc pv-sample`
-
-
-:::note
-Always delete application resources before deleting your GKE cluster to ensure that the CSI Volume Plugin cleans up associated persistent disks properly.
-:::
-
-
-[PVC manifest]: https://gitlab.verizon.com/google-containers/gke-sample-applications/-/raw/main/persistent-disks/sample-pvc.yaml
-[Pod manifest]: https://gitlab.verizon.com/google-containers/gke-sample-applications/-/raw/main/persistent-disks/sample-pod.yaml
-
-
-
-Using the document above the (Use Persistent Disks) as a template, create a doc like above for this ticket requirement below.
-
-
-Add Filestore Storage Guide
-Acceptance Criteria
-1. Add page titled "Use Filestore" to the "Provision Storage" folder in the GKE > Guides section.
-
-2. The "Use Filestore" page describes the following:
-
-Describe which KMS encrypted StorageClass is available for use.
-Provide an example of how to access a pre-existing Filestore instance. This example creates PersistentVolumeClaim and creates a Pod that consumes the volume. More details available in the Google documentation.
-Verify that we can write to the filestore
-
-
-
-
-I have the URL for a sample pv, pvc and pod that will go in the filestorage Guide.
-
-This is the sample pv resource below, 
-Make sure to add in the doc guide and explain 
-    volumeHandle: "modeInstance/us-east4/gke-sample/vol1"
-    volumeAttributes:
-      ip: 192.168.224.66
-
-
+```yaml
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -103,9 +36,39 @@ spec:
   claimRef:
     namespace: default
     name: fileserver-pvc
-    
-    
-This is the pod resource
+```
+
+#### 2. Create a PersistentVolumeClaim (PVC)
+This PVC manifest specifies the `csi-gce-filestore-cmek` storage class and requests 10Gi of storage.
+
+```yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: fileserver-pvc
+spec:
+  accessModes:
+  - ReadWriteMany
+  storageClassName: csi-gce-filestore-cmek
+  resources:
+    requests:
+      storage: 10Gi
+```
+
+Apply the PVC manifest:
+```bash
+kubectl apply -f <path-to-pvc-file>
+```
+
+#### 3. Verify PVC Status
+Use `kubectl get pvc` to check the status of the PVC.
+
+A status of `Pending` indicates the PVC is waiting for a Pod to use the volume.
+
+#### 4. Create a Pod with PVC
+This Pod manifest binds the PVC to a persistent volume and mounts it in a container.
+
+```yaml
 apiVersion: v1
 kind: Pod
 metadata:
@@ -144,21 +107,33 @@ spec:
   - name: fileserver-volume
     persistentVolumeClaim:
       claimName: fileserver-pvc
+```
 
+Apply the Pod manifest:
+```bash
+kubectl apply -f <path-to-pod-file>
+```
 
-This is the pvc resource
-kind: PersistentVolumeClaim
-apiVersion: v1
-metadata:
-  name: fileserver-pvc
-spec:
-  accessModes:
-  - ReadWriteMany
-  storageClassName: csi-gce-filestore-cmek
-  resources:
-    requests:
-      storage: 10Gi
+#### 5. Verify PVC Binding
+Use `kubectl get pvc` to check if the PVC has been bound to a persistent volume.
 
+#### 6. Verify Pod Usage
+Use `kubectl describe pod reader` to describe the Pod to confirm it is using the bound PVC.
 
-Tepmrorayly add the yaml reources until I replace them with just the link like for the sample gke application link.
+#### 7. Write to Filestore
+To verify that the Filestore instance is accessible and writable, exec into the container and create a test file:
+```bash
+kubectl exec -it reader -- touch /usr/share/nginx/html/testfile.txt
+```
+
+#### 8. Clean Up
+When finished, delete the Pod and PVC:
+```bash
+kubectl delete pod reader
+kubectl delete pvc fileserver-pvc
+```
+
+:::note
+Always delete application resources before deleting your GKE cluster to ensure that the CSI Volume Plugin cleans up associated persistent disks properly.
+:::
 
