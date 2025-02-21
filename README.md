@@ -1,90 +1,69 @@
 ---
-id: filestore
-title: Use Filestore
+id: ingress
+title: Enable Ingress Traffic with Istio APIs
 ---
 
-The guide describes the typical process for using a Kubernetes volume backed by a CSI driver in GKE.
+#### Enable Ingress Traffic with Istio APIs
 
-#### Storage Classes
-You must use the KMS-encrypted storage class listed below. PersistentVolumeClaim (PVC) manifests that specify this storage class will dynamically provision storage for Pods.
+#### Purpose of the Ingress Gateway and Managed Service Mesh Control Plane
 
-- **Filestore Storage (`csi-gce-filestore-cmek`)**: NFS access for applications requiring multiple reads and writes.
+In Istio, the **Ingress Gateway** is a specialized Envoy proxy that manages inbound traffic to the service mesh. It allows you to define entry points into the mesh, control traffic flow, and apply routing rules before the traffic reaches your services. This setup enhances security, observability, and traffic management capabilities.
 
-#### 1. Create a PersistentVolume (PV)
-This PersistentVolume (PV) resource represents a pre-existing Filestore instance and is required before a PersistentVolumeClaim (PVC) can be created.
+The **Managed Service Mesh Control Plane** oversees the configuration and management of the data plane components, including the ingress gateways and sidecar proxies. By decoupling control and data planes, Istio ensures efficient management of traffic policies and telemetry collection without impacting application performance.
 
-```bash
-kubectl apply -f https://gitlab.verizon.com/google-containers/gke-sample-applications/-/raw/main/filestore/sample-pv.yaml
-```
+#### Deploying a Web Application with Ingress Configuration
 
-The `volumeHandle` uniquely identifies the Filestore instance in GCP, specifying the storage location and volume name. The `volumeAttributes` contain the IP address of the Filestore instance, which is required for connecting to it.
+We will deploy the `httpbin` application, a simple HTTP request and response service, to demonstrate ingress traffic management.
 
-
-#### 2. Create a PersistentVolumeClaim (PVC)
-This PVC manifest specifies the `csi-gce-filestore-cmek` storage class and requests 50Gi of storage.
+#### Step 1: Deploy the `httpbin` Pod
+This pod manifest specifies the pod deployment.
 
 ```bash
-kubectl apply -f https://gitlab.verizon.com/google-containers/gke-sample-applications/-/raw/main/filestore/sample-pvc.yaml
+kubectl apply -f https://gitlab.verizon.com/google-containers/gke-sample-applications/-/raw/main/istio-ingress-gateway/pod.yaml
 ```
 
-#### 3. Create a Pod with PVC
-This Pod manifest binds the PVC to a persistent volume and mounts it in a container.
+#### Step 2: Deploy the `httpbin` Service
+This service manifest specifies the `httpbin` service for the pod.
 
 ```bash
-kubectl apply -f https://gitlab.verizon.com/google-containers/gke-sample-applications/-/raw/main/filestore/sample-pod.yaml
+kubectl apply -f https://gitlab.verizon.com/google-containers/gke-sample-applications/-/raw/main/istio-ingress-gateway/service.yaml
 ```
 
-#### 4. Verify PVC Binding
-Use `kubectl get pvc` to check if the PVC has been bound to a persistent volume.
+#### Step 3: Deploy the `httpbin` Virtual Service
+This service manifest specifies a `VirtualService` to route traffic from the gateway to the `httpbin` service.
 
-#### 5. Verify Pod Usage
-Use `kubectl describe pod busybox` to describe the Pod to confirm it is using the bound PVC.
-
-#### 6. Write to Filestore
-To verify that the Filestore instance is accessible and writable, exec into the container and create a test file:
 ```bash
-kubectl exec -it busybox -- touch /usr/share/nginx/html/testfile.txt
+kubectl apply -f https://gitlab.verizon.com/google-containers/gke-sample-applications/-/raw/main/istio-ingress-gateway/virtual-service.yaml
 ```
 
-#### 7. Clean Up
-When finished, delete the Pod and PVC:
+#### Step 4: Requirements for Kubernetes TLS Secrets
+Before configuring the TLS-enabled ingress gateway, ensure you have a valid TLS certificate and private key. You will need to create a Kubernetes secret to store these credentials.
+
+If you plan to serve HTTPS traffic through the ingress gateway, you'll need to configure TLS. Generate a TLS certificate and private key for your domain, then create a Kubernetes secret to store these credentials:
+
+#### TLS Secret
+This secret manifest deploys a secret which includes a certificate crt an key along with the necessary secret annotation to have the secret reflected reflected in the asm-ingressgateway namespace.
+
 ```bash
-kubectl delete pod busybox
-kubectl delete pvc fileserver-pvc
+kubectl apply -f https://gitlab.verizon.com/google-containers/gke-sample-applications/-/raw/main/istio-ingress-gateway/tls-secret.yaml
 ```
 
-:::note
-Always delete application resources before deleting your GKE cluster to ensure that the CSI Volume Plugin cleans up associated persistent disks properly.
-:::
+Reference the secret in your `Gateway` configuration:
 
+```yaml
+tls:
+  mode: SIMPLE
+  credentialName: httpbin-tls-secret
+```
 
+#### Step 5: Configuring TLS for Ingress Gateway
+Define an Istio `Gateway` resource to handle HTTPS traffic using a TLS secret:
 
-
-
-
-
-
-
-
-#### 6. Write to Filestore
-To verify that the Filestore instance is accessible and writable, exec into the container and create a test file:
 ```bash
-kubectl exec -it busybox -- touch /usr/share/nginx/html/testfile.txt
+kubectl apply -f https://gitlab.verizon.com/google-containers/gke-sample-applications/-/raw/main/istio-ingress-gateway/gateway.yaml
 ```
 
-i want to usee this type of exapmle below instead for step 6
+#### Step 6: Configuring DNS for the Ingress Gateway
+To associate a domain name with your ingress gateway's external IP, create a [DNS] `A` record pointing your desired domain to the ingress gateway's IP address, which is the external IP of the clusters ASM ingress gateway service. 
 
-This demonstrates the read/write ability:
-$ k exec -it busybox -- sh
-/ $ ls -al /tmp/
-total 4
-drwxrwsr-x    2 root     1000             0 Feb 14 16:31 .
-drwxr-xr-x    1 root     root          4096 Feb 17 17:27 ..
-/ $ echo "Hello world!" > /tmp/hello.txt
-/ $ ls -al /tmp/
-total 8
-drwxrwsr-x    2 root     1000             0 Feb 17 17:31 .
-drwxr-xr-x    1 root     root          4096 Feb 17 17:27 ..
--rw-r--r--    1 1000     1000            13 Feb 17 17:31 hello.txt
-/ $ cat /tmp/hello.txt 
-Hello world!
+[DNS]: https://dns.verizon.com/req.php
