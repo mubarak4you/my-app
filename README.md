@@ -13,123 +13,43 @@ You must use the KMS-encrypted storage class listed below. PersistentVolumeClaim
 #### 1. Create a PersistentVolume (PV)
 This PersistentVolume (PV) resource represents a pre-existing Filestore instance and is required before a PersistentVolumeClaim (PVC) can be created.
 
+```bash
+kubectl apply -f https://gitlab.verizon.com/google-containers/gke-sample-applications/-/raw/main/filestore/sample-pv.yaml
+```
+
 The `volumeHandle` uniquely identifies the Filestore instance in GCP, specifying the storage location and volume name. The `volumeAttributes` contain the IP address of the Filestore instance, which is required for connecting to it.
 
-```yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: fileserver-pv
-spec:
-  capacity:
-    storage: 10Gi
-  accessModes:
-    - ReadWriteMany
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: csi-gce-filestore-cmek
-  csi:
-    driver: filestore.csi.storage.gke.io
-    volumeHandle: "modeInstance/us-east4/gke-sample/vol1"
-    volumeAttributes:
-      ip: 192.168.224.66
-      volume: vol1
-  claimRef:
-    namespace: default
-    name: fileserver-pvc
-```
 
 #### 2. Create a PersistentVolumeClaim (PVC)
-This PVC manifest specifies the `csi-gce-filestore-cmek` storage class and requests 10Gi of storage.
+This PVC manifest specifies the `csi-gce-filestore-cmek` storage class and requests 50Gi of storage.
 
-```yaml
-kind: PersistentVolumeClaim
-apiVersion: v1
-metadata:
-  name: fileserver-pvc
-spec:
-  accessModes:
-  - ReadWriteMany
-  storageClassName: csi-gce-filestore-cmek
-  resources:
-    requests:
-      storage: 10Gi
-```
-
-Apply the PVC manifest:
 ```bash
-kubectl apply -f <path-to-pvc-file>
+kubectl apply -f https://gitlab.verizon.com/google-containers/gke-sample-applications/-/raw/main/filestore/sample-pvc.yaml
 ```
 
-#### 3. Verify PVC Status
-Use `kubectl get pvc` to check the status of the PVC.
-
-A status of `Pending` indicates the PVC is waiting for a Pod to use the volume.
-
-#### 4. Create a Pod with PVC
+#### 3. Create a Pod with PVC
 This Pod manifest binds the PVC to a persistent volume and mounts it in a container.
 
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: reader
-spec:
-  securityContext:
-    fsGroup: 1001
-    supplementalGroups: [1001]
-  containers:
-  - name: nginx
-    image: go0v-vzdocker.oneartifactoryprod.verizon.com/containers/cicd/apache:2.4.58
-    ports:
-    - containerPort: 80
-    volumeMounts:
-    - name: fileserver-volume
-      mountPath: /usr/share/nginx/html
-      readOnly: true
-    securityContext:
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop:
-          - "ALL"
-      privileged: false
-      readOnlyRootFilesystem: true
-      runAsNonRoot: true
-      seccompProfile:
-        type: RuntimeDefault
-    resources:
-      requests:
-        cpu: 100m
-        memory: 128Mi
-      limits:
-        cpu: 500m
-        memory: 256Mi
-  volumes:
-  - name: fileserver-volume
-    persistentVolumeClaim:
-      claimName: fileserver-pvc
-```
-
-Apply the Pod manifest:
 ```bash
-kubectl apply -f <path-to-pod-file>
+kubectl apply -f https://gitlab.verizon.com/google-containers/gke-sample-applications/-/raw/main/filestore/sample-pod.yaml
 ```
 
-#### 5. Verify PVC Binding
+#### 4. Verify PVC Binding
 Use `kubectl get pvc` to check if the PVC has been bound to a persistent volume.
 
-#### 6. Verify Pod Usage
-Use `kubectl describe pod reader` to describe the Pod to confirm it is using the bound PVC.
+#### 5. Verify Pod Usage
+Use `kubectl describe pod busybox` to describe the Pod to confirm it is using the bound PVC.
 
-#### 7. Write to Filestore
+#### 6. Write to Filestore
 To verify that the Filestore instance is accessible and writable, exec into the container and create a test file:
 ```bash
-kubectl exec -it reader -- touch /usr/share/nginx/html/testfile.txt
+kubectl exec -it busybox -- touch /usr/share/nginx/html/testfile.txt
 ```
 
-#### 8. Clean Up
+#### 7. Clean Up
 When finished, delete the Pod and PVC:
 ```bash
-kubectl delete pod reader
+kubectl delete pod busybox
 kubectl delete pvc fileserver-pvc
 ```
 
@@ -137,3 +57,34 @@ kubectl delete pvc fileserver-pvc
 Always delete application resources before deleting your GKE cluster to ensure that the CSI Volume Plugin cleans up associated persistent disks properly.
 :::
 
+
+
+
+
+
+
+
+
+
+#### 6. Write to Filestore
+To verify that the Filestore instance is accessible and writable, exec into the container and create a test file:
+```bash
+kubectl exec -it busybox -- touch /usr/share/nginx/html/testfile.txt
+```
+
+i want to usee this type of exapmle below instead for step 6
+
+This demonstrates the read/write ability:
+$ k exec -it busybox -- sh
+/ $ ls -al /tmp/
+total 4
+drwxrwsr-x    2 root     1000             0 Feb 14 16:31 .
+drwxr-xr-x    1 root     root          4096 Feb 17 17:27 ..
+/ $ echo "Hello world!" > /tmp/hello.txt
+/ $ ls -al /tmp/
+total 8
+drwxrwsr-x    2 root     1000             0 Feb 17 17:31 .
+drwxr-xr-x    1 root     root          4096 Feb 17 17:27 ..
+-rw-r--r--    1 1000     1000            13 Feb 17 17:31 hello.txt
+/ $ cat /tmp/hello.txt 
+Hello world!
