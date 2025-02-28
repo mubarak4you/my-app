@@ -11,7 +11,8 @@ spec:
     chart: istio-ingressgateway
     version: "1.0.0"
     releaseName: istio-ingressgateway
-    namespace: asm-ingressgateway
+    namespace: asm-ingressgateway  # This only affects Helm templates with {{ .Release.Namespace }}
+    deployNamespace: asm-ingressgateway  # ✅ Forces namespace for all resources
     auth: token
     secretRef:
       name: rootsync-artifactory
@@ -31,7 +32,6 @@ spec:
         runAsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
-        
       resources:
         limits:
           cpu: "2000m"
@@ -39,6 +39,4 @@ spec:
         requests:
           cpu: "100m"
           memory: "128Mi"
-
       serviceAccountName: istio-ingressgateway
-
