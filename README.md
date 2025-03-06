@@ -7,6 +7,9 @@ metadata:
   labels:
     {{- include "istio-ingressgateway.labels" . | nindent 4 }}
   {{- with .Values.deploymentAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   selector:
     matchLabels:
@@ -18,7 +21,7 @@ spec:
         # required configuration.
         inject.istio.io/templates: gateway
       labels:
-        {{- include "metrics-server.selectorLabels" . | nindent 8 }}
+        {{- include "istio-ingressgateway.selectorLabels" . | nindent 8 }}
         app: istio-ingressgateway
         istio: ingressgateway
         istio.io/rev: asm-managed-stable
@@ -80,6 +83,7 @@ spec:
               fieldRef:
                 fieldPath: metadata.namespace
       serviceAccountName: {{ include "istio-ingressgateway.serviceAccountName" . }}
+
 
 
 
@@ -180,7 +184,7 @@ deploymentAnnotations: {}
 
 
 Error
-     Error Message:  KNV2004: error in the helm-sync container: {"Msg":"unexpected error rendering chart, will retry","Err":"rendering helm chart: invoking helm: Pulled: go0v-vzdocker.oneartifactoryprod.verizon.com/containers/dev/charts/istio-ingressgateway:1.0.1\nDigest: sha256:aa75eeea71503db5455887347c5ff2f498b91e4368af948e2842a0952e4c88e6\nError: parse error at (istio-ingressgateway/templates/deployment.yaml:82): unexpected EOF\n\nUse --debug flag to render out invalid YAML\n: exit status 1","Args":{}}
+      Error Message:  KNV2009: failed to apply RoleBinding.rbac.authorization.k8s.io, istio-ingressgateway/istio-ingressgateway: RoleBinding.rbac.authorization.k8s.io "istio-ingressgateway" is invalid: subjects[0].name: Required value
 
 
 
