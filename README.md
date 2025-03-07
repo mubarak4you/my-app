@@ -1,4 +1,5 @@
 deployment.yaml
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -85,8 +86,6 @@ spec:
       serviceAccountName: {{ include "istio-ingressgateway.serviceAccountName" . }}
 
 
-
-
 _helpers.tpl
 {{/*
 Expand the name of the chart.
@@ -161,8 +160,12 @@ The image to use
 {{- printf "%s:%s" .Values.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.image.tag) }}
 {{- end }}
 
-
 values.yaml
+imagePullSecret: go0v-vzdocker
+
+nameOverride: ""
+fullnameOverride: ""
+
 resources:
   limits:
     cpu: 2000m
@@ -174,51 +177,39 @@ resources:
 serviceAccount:
   create: true
   annotations: {}
-  name: "istio-ingressgateway-test"
+  name: istio-ingressgateway
   secrets: []
-
-imagePullSecret: go0v-vzdocker
 
 deploymentAnnotations: {}
 
 
-rolebinding.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: {{ include "istio-ingressgateway.fullname" . }}
-  namespace: {{ .Release.Namespace }}
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: {{ include "istio-ingressgateway.fullname" . }}
-subjects:
-- kind: ServiceAccount
-  name: {{ include "istio-ingressgateway.serviceAccountName" . }}
 
-but service account that gets created the name is wrong..
-[alabimu@10-74-128-76 ~]$ kubectl describe rolebinding -n asm-ingressgateway
-Name:         istio-ingressgateway
-Labels:       app.kubernetes.io/managed-by=configmanagement.gke.io
-              applyset.kubernetes.io/part-of=applyset-NofvAQylE1-JR-RUcEJO4beYGo7H6CFrRpucNW5fWjM-v1
-              configsync.gke.io/declared-version=v1
-Annotations:  config.k8s.io/owning-inventory: config-management-system_istio-ingressgateway
-              configmanagement.gke.io/cluster-name: gke-etgke-1237-np-us-east4-go0v
-              configmanagement.gke.io/managed: enabled
-              configmanagement.gke.io/source-path: istio-ingressgateway/templates/rolebinding.yaml
-              configmanagement.gke.io/token: 1.0.1
-              configsync.gke.io/declared-fields:
-                {"f:metadata":{"f:annotations":{"f:configmanagement.gke.io/cluster-name":{},"f:configmanagement.gke.io/source-path":{}},"f:labels":{"f:con...
-              configsync.gke.io/git-context: {"repo":"oci://go0v-vzdocker.oneartifactoryprod.verizon.com/containers/dev/charts","rev":"1.0.1"}
-              configsync.gke.io/manager: :root_istio-ingressgateway
-              configsync.gke.io/resource-id: rbac.authorization.k8s.io_rolebinding_asm-ingressgateway_istio-ingressgateway
-Role:
-  Kind:  Role
-  Name:  istio-ingressgateway
-Subjects:
-  Kind            Name                  Namespace
-  ----            ----                  ---------
-  ServiceAccount  istio-ingressgateway  
+I want to templatize 
+      initContainers:
+      - image: go0v-vzdocker.oneartifactoryprod.verizon.com/containers/cicd/kubectl:1.30.5
+        name: init
+        
+
+using something like this in the _helpers.tpl file
+{{/*
+The image to use
+*/}}
+{{- define "metrics-server.image" -}}
+{{- printf "%s:%s" .Values.image.repository (default (printf "v%s" .Chart.AppVersion) .Values.image.tag) }}
+{{- end }}
+
+also add what needs to be added
+values.yaml
+
+
+
+
+
+
+
+
+
+
 
 
 
