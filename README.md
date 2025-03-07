@@ -1,17 +1,17 @@
 {{/*
-The initContainer image to use
+The istio-proxy container image to use
 */}}
-{{- define "istio-ingressgateway.initContainerImage" -}}
-{{- printf "%s:%s" .Values.initContainer.image.repository .Values.initContainer.image.tag }}
+{{- define "istio-ingressgateway.proxyImage" -}}
+{{- printf "%s:%s" .Values.proxy.image.repository .Values.proxy.image.tag }}
 {{- end }}
 
 
-initContainer:
+proxy:
   image:
-    repository: go0v-vzdocker.oneartifactoryprod.verizon.com/containers/cicd/kubectl
-    tag: 1.30.5
+    repository: auto
+    tag: latest
 
 
-initContainers:
-  - image: {{ include "istio-ingressgateway.initContainerImage" . }}
-    name: init
+containers:
+  - name: istio-proxy
+    image: {{ include "istio-ingressgateway.proxyImage" . }}
