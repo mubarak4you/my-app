@@ -1,13 +1,17 @@
-Here's a simple CPU + memory stress combo one-liner:
+After reviewing the setup and running initial tests, it appears that there’s not much benefit in actively stress testing the prometheus-node-exporter. Since it’s a passive metrics collector that simply exposes node-level metrics (CPU, memory, disk, etc.), its resource usage remains very low and consistent under normal conditions. Stressing the pod itself doesn’t reflect actual workloads, as it doesn't perform any significant computation or memory-intensive tasks.
 
-sh -c 'for i in $(seq 1 8); do while :; do :; done & done; tail /dev/zero | head -c 500M > /dev/null & sleep 60'
+That said, based on the baseline values collected, here are the recommended CPU and memory request/limit values for prometheus-node-exporter:
 
+    CPU
 
-This:
+        Request: 2m
 
-    Spins 8 CPU loops
+        Limit: 4m
 
-    Streams 500MB of memory junk to /dev/null (allocating memory in the process)
-    
-    
-    
+    Memory
+
+        Request: 24Mi
+
+        Limit: 50Mi
+
+These values provide a safe buffer over observed usage (~1.23 mCPU and 19.3 MiB memory) while keeping the pod lightweight and scheduler-friendly.
