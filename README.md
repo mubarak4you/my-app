@@ -1,22 +1,15 @@
-for i in {1..100}; do
-  curl -XPOST http://<alertmanager-ip>:9093/api/v1/alerts -H "Content-Type: application/json" -d '[
-    {
-      "labels": {
-        "alertname": "TestAlert",
-        "severity": "critical"
-      },
-      "annotations": {
-        "summary": "Test alert"
-      },
-      "startsAt": "'$(date -Iseconds)'"
-    }
-  ]' &
+sh -c 'for i in $(seq 1 4); do while :; do :; done & done; sleep 60'
+
+
+🎯 Goal:
+
+Trigger changes in the metrics exposed by prometheus-node-exporter by generating CPU, memory, or disk load on the same node.
+
+
+
+3. prometheus-server
+for i in {1..50}; do
+  curl "http://<prometheus-server>:9090/api/v1/query?query=up" &
 done
 
-
- for i in {1..100}; do curl -s -XPOST http://<alertmanager-ip>:9093/api/v1/alerts -H "Content-Type: application/json" -d '[{"labels":{"alertname":"TestAlert","severity":"critical"},"annotations":{"summary":"Test alert"},"startsAt":"'"$(date -Iseconds)"'"}]' & done
-
-ssh -L 9093:localhost:9093 <bastion-user>@<bastion-ip>
-
-
-kubectl port-forward svc/prometheus-alertmanager 9093:9093 -n monitoring
+Load the /api/v1/query endpoint with many complex queries.
