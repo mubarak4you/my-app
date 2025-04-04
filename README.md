@@ -1,15 +1,13 @@
-sh -c 'for i in $(seq 1 4); do while :; do :; done & done; sleep 60'
+Here's a simple CPU + memory stress combo one-liner:
+
+sh -c 'for i in $(seq 1 8); do while :; do :; done & done; tail /dev/zero | head -c 500M > /dev/null & sleep 60'
 
 
-🎯 Goal:
+This:
 
-Trigger changes in the metrics exposed by prometheus-node-exporter by generating CPU, memory, or disk load on the same node.
+    Spins 8 CPU loops
 
-
-
-3. prometheus-server
-for i in {1..50}; do
-  curl "http://<prometheus-server>:9090/api/v1/query?query=up" &
-done
-
-Load the /api/v1/query endpoint with many complex queries.
+    Streams 500MB of memory junk to /dev/null (allocating memory in the process)
+    
+    
+    
