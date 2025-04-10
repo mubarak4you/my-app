@@ -103,3 +103,6 @@ resources:
   requests:
     cpu: “15m”
     memory: “800Mi"
+
+
+Performed a stress test on the prometheus-server that fires 5000 concurrent queries to using a heavy query: rate(container_cpu_usage_seconds_total[5m]), this loads both the PCU and memory by retrieving lots of time series data from TSDB 
