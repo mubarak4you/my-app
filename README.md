@@ -1,20 +1,35 @@
-Summary:
-Collected baseline resource usage for sysdig-agent and sysdig-clustershield as part of the Sysdig deployment evaluation:
+✅ 1. Sysdig Agent Memory Stress Test (Realistic I/O Workload)
 
-    sysdig-agent
+This simulates an app generating a ton of log files or temp data, which triggers file-related syscalls (open, write, close) that Sysdig monitors.
 
-        CPU: 50–70 mCores (Peak: 150 mCores)
+kubectl run sysdig-memtest --image=go0v-vzdocker/containers/cicd/httpbin/2.6.0 --restart=Never -- \
+  sh -c 'for i in $(seq 1 10000); do echo "testdata $i" > /tmp/file-$i.log; done; sleep 60'
 
-        Memory: 373 MiB
+💡 What this triggers for Sysdig:
 
-    sysdig-clustershield
+    File creation & modification
 
-        CPU: 2.54 Cores
+    Directory traversal
 
-        Memory: 149 MiB
+    Open/write/close syscalls
 
-I looked into the best ways to stress test each component based on what they’re designed to do. For sysdig-agent, I’ll be simulating a busy environment by quickly creating and deleting a large number of pods. This will help test how well the agent handles real-world activity where workloads are constantly starting and stopping.
+    Audit trail processing
 
-For sysdig-clustershield, I’ll be creating Kubernetes resources that are purposely misconfigured or break best practices. This is to test how well it detects security and compliance issues in the cluster.
+    Activity tracking
 
-The plan is to set up a new test cluster today where I can safely run these tests and observe how both components perform under pressure.
+✅ 2. Sysdig Agent CPU Stress Test (Realistic Process Activity)
+
+This simulates a service that's constantly launching subprocesses, which Sysdig picks up via execve, clone, exit syscalls.
+
+kubectl run sysdig-cputest --image=go0v-vzdocker/containers/cicd/httpbin/2.6.0 --restart=Never -- \
+  sh -c 'for i in $(seq 1 5000); do /bin/true; done; sleep 30'
+
+💡 What this triggers for Sysdig:
+
+    Thousands of short-lived process events
+
+    High execve syscall rate
+
+    Activity audit logging
+
+    Event buffer processing (real CPU pressure point)
