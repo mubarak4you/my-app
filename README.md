@@ -1,1 +1,1 @@
-touch /tmp/test.log && echo "success" || echo "failed"
+for i in $(seq 1 1000); do echo "testdata $i" > /tmp/file-$i.log; done
