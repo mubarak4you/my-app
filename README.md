@@ -1,12 +1,7 @@
 cs
 for i in $(seq 1 500); do (echo "id; whoami; uptime" | sh) & nc -z -v 1.1.1.1 80 & sha1sum /dev/zero & done
 
-for i in $(seq 1 100); do \
-  curl http://ifconfig.me & \
-  nc -z 8.8.8.8 443 & \
-  bash -c "whoami; ps aux; sleep 1" & \
-  sha256sum /dev/zero & \
-  done
+for i in $(seq 1 300); do sh -c 'true' & nc -z 1.1.1.1 443 & sha1sum /dev/zero & sleep 0.1; done
 
 
 
