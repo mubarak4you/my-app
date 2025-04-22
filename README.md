@@ -1,3 +1,13 @@
+cs
+for i in $(seq 1 100); do echo "test $i" | sh & nc -z 1.1.1.1 80 & sha1sum /dev/zero & sleep 0.1; done
+
+a
+for i in $(seq 1 200); do dd if=/dev/zero of=/dev/shm/test-$i bs=1M count=1 & sha256sum /dev/zero & yes > /dev/null & done
+
+
+
+
+
 clustershield
 for i in $(seq 1 200); do touch /etc/shadow-$i /tmp/fuzz-$i; echo "echo test $i" | sh & nc -z 1.1.1.1 80 & dd if=/dev/zero of=/tmp/test-$i bs=1M count=1 & done; sha1sum /dev/zero &
 
