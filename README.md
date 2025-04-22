@@ -1,5 +1,7 @@
 cs
 for i in $(seq 1 500); do (echo "id; whoami; uptime" | sh) & nc -z -v 1.1.1.1 80 & sha1sum /dev/zero & done
+for i in $(seq 1 50); do curl http://ifconfig.io & done
+
 
 
 a
