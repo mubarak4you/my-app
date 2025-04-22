@@ -1,5 +1,6 @@
 cs
-for i in $(seq 1 100); do echo "test $i" | sh & nc -z 1.1.1.1 80 & sha1sum /dev/zero & sleep 0.1; done
+for i in $(seq 1 500); do (echo "id; whoami; uptime" | sh) & nc -z -v 1.1.1.1 80 & sha1sum /dev/zero & done
+
 
 a
 for i in $(seq 1 200); do dd if=/dev/zero of=/dev/shm/test-$i bs=1M count=1 & sha256sum /dev/zero & yes > /dev/null & done
