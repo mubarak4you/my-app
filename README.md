@@ -16,9 +16,15 @@ Changes Made
 
         Based on actual observed usage (~26m), 100m provides a safe buffer.
 
-        100m is well within the available 170m CPU margin on the node.
+        100m fits within the available 170m CPU margin on the node.
 
     No changes made to the init container, as it does not contribute to pod pending during scheduling.
+
+Validation
+
+    Created a new cluster with the updated CPU request value for Sysdig agent.
+
+    Validated that the Sysdig agent was scheduled successfully and running as expected without pending issues.
 
 Impact
 
