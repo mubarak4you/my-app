@@ -1,12 +1,2 @@
-kubectl get pods --all-namespaces -o json \
-  | jq '.items[] | {namespace: .metadata.namespace, name: .metadata.name, scheduler: .spec.schedulerName}'
-
-
-kubectl get pods -n <namespace> -o json \
-  | jq '.items[] | {name: .metadata.name, scheduler: .spec.schedulerName}'
-
-
-kubectl get pods --all-namespaces --field-selector spec.nodeName=<node-name> -o json \
-  | jq '.items[] | {namespace: .metadata.namespace, name: .metadata.name, scheduler: .spec.schedulerName}'
-
+I created a new OKE cluster to investigate how Gatekeeper might be affecting control plane upgrades. I reviewed the active Gatekeeper constraints on the cluster and looked into which ones could potentially block upgrades based on their configuration. I also checked the audit and controller manager pod logs for any signs of constraint enforcement during operations. To test further, I kicked off a control plane upgrade from version 1.31.1 to 1.32.1 using the OKE console. The upgrade completed successfully, and the cluster status showed as "Active." I didn’t notice any constraint denials in the logs during the upgrade. However, I'm not fully sure if this approach reflects the actual control plane upgrade path used in production, so I’ll need to do more digging on that
 
