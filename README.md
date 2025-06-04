@@ -1,2 +1,6 @@
-I created a new OKE cluster to investigate how Gatekeeper might be affecting control plane upgrades. I reviewed the active Gatekeeper constraints on the cluster and looked into which ones could potentially block upgrades based on their configuration. I also checked the audit and controller manager pod logs for any signs of constraint enforcement during operations. To test further, I kicked off a control plane upgrade from version 1.31.1 to 1.32.1 using the OKE console. The upgrade completed successfully, and the cluster status showed as "Active." I didn’t notice any constraint denials in the logs during the upgrade. However, I'm not fully sure if this approach reflects the actual control plane upgrade path used in production, so I’ll need to do more digging on that
+for kind in $(kubectl get constrainttemplates -o jsonpath='{.items[*].spec.names.kind}'); do
+  echo "Checking $kind...";
+  kubectl get $kind -A -o json | jq -r '.items[] | select(.status.violations != null) | "Kind: '"$kind"'\nName: \(.metadata.name)\nNamespace: \(.metadata.namespace // "cluster-scoped")\nViolations:\n\(.status.violations)\n---"'
+done
+
 
