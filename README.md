@@ -456,3 +456,415 @@ Checking release: kube-system/vz-ingress-manager
 
 
 
+common data moudle
+
+locals {
+  # (TODO cappni7) Configuration values is a placeholder. Subnets will be confirmed with the network team
+  # closer to the GA release date.
+  environment_config = {
+    "NONPROD" = {
+      tenancy_name               = "vznprdbizgeneral"
+      root_compartment_id        = "ocid1.tenancy.oc1..aaaaaaaaf3rzvq3we74v2a3zmgsbez734ziwpaquh62s3y3arp57tasaoxaq"
+      platform_ingress_domain    = "ebiz.verizon.com"
+      engineering_compartment_id = "ocid1.compartment.oc1..aaaaaaaag7milnrpu72yloqj3a4zbliskopvww64nb4kiqhp26qrlyjtiv4q"
+      regions = {
+        iad = {
+          kms_vault_id = "ocid1.vault.oc1.iad.bbpa7dkdaaeuk.abuwcljtbexpr3thfwbn5opdupsqlsq4lknly744aygvhkrzd6sii65kh6bq"
+
+          networking = {
+            # oci.general.npd.us-ashburn-1.vcn
+            vcn_id = "ocid1.vcn.oc1.iad.aaaaaaaajolhy6ptw26lngfs2aqaizynzsqj5nfr2cslamloumbze473fa5a"
+
+            # oci.general.npd.us-ashburn-1.gz.oke.worker.subnet-2
+            endpoint_subnet_id = "ocid1.subnet.oc1.iad.aaaaaaaahcpg2b2tvrxlm7asaofmitzfw54xkpxewgvcel4cr6hjbvlg66za"
+
+            # oci.general.npd.us-ashburn-1.gz.oke.worker.subnet-2 
+            node_subnet_id = "ocid1.subnet.oc1.iad.aaaaaaaahcpg2b2tvrxlm7asaofmitzfw54xkpxewgvcel4cr6hjbvlg66za"
+
+            dns_nameservers = "153.114.241.7 159.67.63.7"
+
+            # MASTER-OKE-ALL
+            endpoint_nsgs = ["ocid1.networksecuritygroup.oc1.iad.aaaaaaaaid57bhj6o76ft2kfvzg6grjvnudfont56ldzdrjznn744mdy3lkq"]
+
+            # MASTER-OKE-ALL
+            node_nsgs = ["ocid1.networksecuritygroup.oc1.iad.aaaaaaaaid57bhj6o76ft2kfvzg6grjvnudfont56ldzdrjznn744mdy3lkq"]
+
+            # oci.general.npd.us-ashburn-1.gz.general.subnet-1
+            oci_lb_subnet_ids = ["ocid1.subnet.oc1.iad.aaaaaaaa5qhbqidcyflys6gmujxixnqa3ai2eq55sxrpmdbabtc5746sgnba"]
+
+            # MASTER-HTTPS-ALL
+            oci_lb_nsgs = ["ocid1.networksecuritygroup.oc1.iad.aaaaaaaalp3w4xhgmkbov2x663hf4hke3v4rs4ftvw3nhanawx4pwkcadqda"]
+          }
+
+        }
+        phx = {
+          kms_vault_id = "ocid1.vault.oc1.phx.a5ph4ro2aafqw.abyhqljtqxxwupzzfnudjtdaqyx4qgly3qdfdqhe7e7jtxyvqd2bvbqtxaea"
+          networking = {
+            # oci.general.npd.us-phoenix-1.vcn
+            vcn_id = "ocid1.vcn.oc1.phx.aaaaaaaagkr5gcgjzhrsywhqguidnrytmzksut6tdzklc4cunavffeysrxpq"
+
+            # oci.general.npd.us-phoenix-1.gz.oke.worker.subnet-1
+            endpoint_subnet_id = "ocid1.subnet.oc1.phx.aaaaaaaabhleqcy2o7vg2qgcxmhardumw4gonvd6dlxfkvqoa6vuesy7wtiq"
+
+            # oci.general.npd.us-phoenix-1.gz.oke.worker.subnet-1
+            node_subnet_id = "ocid1.subnet.oc1.phx.aaaaaaaabhleqcy2o7vg2qgcxmhardumw4gonvd6dlxfkvqoa6vuesy7wtiq"
+
+            dns_nameservers = "153.114.240.7 159.67.14.7"
+
+            # MASTER-OKE-ALL
+            endpoint_nsgs = ["ocid1.networksecuritygroup.oc1.phx.aaaaaaaaem36ojchg4xv4ydts7p6q37t7cfoemprmdim4bgp4qupxoza7ica"]
+
+            # MASTER-OKE-ALL
+            node_nsgs = ["ocid1.networksecuritygroup.oc1.phx.aaaaaaaaem36ojchg4xv4ydts7p6q37t7cfoemprmdim4bgp4qupxoza7ica"]
+
+            # oci.general.npd.us-phoenix-1.gz.general.subnet-1
+            oci_lb_subnet_ids = ["ocid1.subnet.oc1.phx.aaaaaaaanef5kzo5twnz6hxztfl4h7c6ncfzlnf3ypfl3xg3blkg5grichsa"]
+
+            # MASTER-HTTPS-ALL
+            oci_lb_nsgs = ["ocid1.networksecuritygroup.oc1.phx.aaaaaaaaswoc6tuqgdpfpohcpura26ts3jpetak7h6rtkco44pdzfxctb4sq"]
+          }
+        }
+      }
+      proxy = {
+        http_proxy  = "http://proxy.ebiz.verizon.com:9290"
+        https_proxy = "http://proxy.ebiz.verizon.com:9290"
+        no_proxy    = "10.96.0.1,169.254.169.254,127.0.0.1,localhost,.verizon.com,.vzwcorp.com,.vzbi.com,svc.cluster.local."
+      }
+    }
+    "PROD" = {
+      tenancy_name               = "vzprodbizgeneral"
+      root_compartment_id        = "ocid1.tenancy.oc1..aaaaaaaarmwlmudv2zgyb5edr4ifahsthejtpb2q2fcvifsugwqjsv4xzvwa"
+      platform_ingress_domain    = "verizon.com"
+      engineering_compartment_id = "ocid1.compartment.oc1..aaaaaaaabbkg52i3p6h42yyevanxbihp4myjtdzxskg2gtzlw3nzrohcwaxq"
+      regions = {
+        iad = {
+          kms_vault_id = "ocid1.vault.oc1.iad.bbpe37cuaaeug.abuwcljsbj4t7rytlesxrnqygrvlc36zqony3ukaejwcf7eymxnfkferhuza"
+
+          networking = {
+            # oci.general.prd.us-ashburn-1.vcn
+            vcn_id             = "ocid1.vcn.oc1.iad.aaaaaaaacu4pfrxovkzzjztb6v6fqmhhhscdqgffvp2qryq5araesjxmf77q"
+
+            # oci.general.prd.us-ashburn-1.gz.oke.worker.subnet-1
+            endpoint_subnet_id = "ocid1.subnet.oc1.iad.aaaaaaaawnjc2dnui6a7eg5qsejhrcqmlesfxgiycwddbtlbfr2n4szz35bq"
+
+            # oci.general.prd.us-ashburn-1.gz.oke.worker.subnet-1
+            node_subnet_id     = "ocid1.subnet.oc1.iad.aaaaaaaawnjc2dnui6a7eg5qsejhrcqmlesfxgiycwddbtlbfr2n4szz35bq"
+
+            dns_nameservers    = "153.114.241.7 159.67.63.7"
+
+            # MASTER-OKE-ALL
+            endpoint_nsgs      = ["ocid1.networksecuritygroup.oc1.iad.aaaaaaaajzh224qlszmglqfptyz5klqqirbims2jkqoo4y5rzwjx77tkdjrq"]
+
+            # MASTER-OKE-ALL
+            node_nsgs          = ["ocid1.networksecuritygroup.oc1.iad.aaaaaaaajzh224qlszmglqfptyz5klqqirbims2jkqoo4y5rzwjx77tkdjrq"]
+
+            # oci.general.prd.us-ashburn-1.gz.general.subnet-1
+            oci_lb_subnet_ids  = ["ocid1.subnet.oc1.iad.aaaaaaaa6r3q46zolyvdwnnksrgqngunqv2nc2mfcehoaozqrzw6lgfghsca"]
+
+            # MASTER-HTTPS-ALL
+            oci_lb_nsgs        = ["ocid1.networksecuritygroup.oc1.iad.aaaaaaaaujg3p2q7llpbotnvqflrywtrwbwl4q3rxh2gjfpmxvsde3z6pr3a"]
+          }
+
+        }
+        phx = {
+          kms_vault_id = "ocid1.vault.oc1.phx.a5pe37fnaafqw.abyhqljt2micy6dlrahradjlos7lwygla2rexn6xqnz5eq7anzfkjlxoih2q"
+
+          networking = {
+            # oci.general.prd.us-phoenix-1.vcn
+            vcn_id = "ocid1.vcn.oc1.phx.aaaaaaaasgpcc62ge67s3cywqpr2cknieiyapqpgir2ss6obkx7ib5soltvq"
+
+            # oci.general.prd.us-phoenix-1.gz.oke.worker.subnet-1
+            endpoint_subnet_id = "ocid1.subnet.oc1.phx.aaaaaaaaqohuelxafoevf2iuz3ric2234gdpvyfrgj3nxo3zbc32a5nyckkq"
+
+            # oci.general.prd.us-phoenix-1.gz.oke.worker.subnet-1
+            node_subnet_id = "ocid1.subnet.oc1.phx.aaaaaaaaqohuelxafoevf2iuz3ric2234gdpvyfrgj3nxo3zbc32a5nyckkq"
+
+            dns_nameservers    = "153.114.240.7 159.67.14.7"
+
+            # MASTER-OKE-ALL
+            endpoint_nsgs      = ["ocid1.networksecuritygroup.oc1.phx.aaaaaaaarpftrze7pccepmnbgx6ofv2g54pwdujav43qjfszddemsa2cohna"]
+
+            # MASTER-OKE-ALL
+            node_nsgs          = ["ocid1.networksecuritygroup.oc1.phx.aaaaaaaarpftrze7pccepmnbgx6ofv2g54pwdujav43qjfszddemsa2cohna"]
+
+            # oci.general.prd.us-phoenix-1.gz.general.subnet-1
+            oci_lb_subnet_ids  = ["ocid1.subnet.oc1.phx.aaaaaaaay5jyp3t2e75jxb3vzuuitiiewff2f5enaglziepvft4wxzmkkacq"]
+
+            # MASTER-HTTPS-ALL
+            oci_lb_nsgs        = ["ocid1.networksecuritygroup.oc1.phx.aaaaaaaapvqwaduei4fq66fbaqi5mb7ilov33tfawtkh4ysdj6f5h3tunpsa"]
+          }
+        }
+      }
+      proxy = {
+        http_proxy  = "http://vzproxy.verizon.com:9290"
+        https_proxy = "http://vzproxy.verizon.com:9290"
+        no_proxy    = "10.96.0.1,169.254.169.254,127.0.0.1,localhost,.verizon.com,.vzwcorp.com,.vzbi.com,svc.cluster.local."
+      }
+    }
+  }
+  cluster_config = {
+    kubernetes_version = "v1.31.1"
+    addons_overlay     = "release_1_31"
+  }
+  # Most Compartment names are the VSAD. This is a map of the exceptions.
+  vsad_compartment_map = {
+    "CKKV" = "Governance"
+    "D0SV" = "Security"
+    "GVGV" = "Engineering"
+    "GO0V" = "K8"
+  }
+  compartment_name = coalesce(
+    lookup(local.vsad_compartment_map, var.vsad, null),
+    var.vsad
+  )
+  compartment_id = data.oci_identity_compartments.cluster.compartments[0].id
+
+  environment_key = var.environment == "NONPROD" ? "np" : "pr"
+  network_config  = local.environment_config[var.environment].regions[var.region_key].networking
+  no_proxy = join(",", [local.environment_config[var.environment].proxy.no_proxy,
+  data.oci_core_subnet.api_endpoint.cidr_block])
+  region_id = data.oci_identity_regions.primary.regions[0].name
+  zone      = upper(data.oci_core_subnet.node.defined_tags["Network-Tags.Zone"])
+
+  vast_response   = var.enable_vast_service_request ? jsondecode(data.http.vast_services[0].response_body) : null
+  vast_id         = local.vast_response != null ? (contains(keys(local.vast_response), "ApplicationID") ? local.vast_response.ApplicationID : "") : ""
+  custodian_email = local.vast_response != null ? (contains(keys(local.vast_response), "CustodianEmail") ? local.vast_response.CustodianEmail : "") : ""
+  portfolio       = local.vast_response != null ? (contains(keys(local.vast_response), "BusinessUnit") ? local.vast_response.BusinessUnit : "") : ""
+
+  cluster_name = (
+    var.cluster_id != null ?
+    data.oci_containerengine_clusters.primary[0].clusters[0].name :
+    join(".", [
+      "oke",
+      var.short_name,
+      local.environment_key,
+      var.region_key,
+      lower(var.vsad)
+    ])
+  )
+
+  # Use the UserID from the variable if provided; 
+  # otherwise, retrieve it from the cluster's freeform tag
+  user_id = (
+    var.user_id == null ?
+    data.oci_containerengine_clusters.primary[0].clusters[0].freeform_tags["UserID"] :
+    var.user_id
+  )
+  whois_url = "https://orchestra.verizon.com/aws/api/whois"
+
+  # Get the user metadata from the whois service
+  # If the service is not enabled, use the email from the cluster's freeform tag
+  user_metadata = (
+    var.enable_whois_service_request ?
+    jsondecode(data.http.user_metadata[0].response_body) :
+    { mail = data.oci_containerengine_clusters.primary[0].clusters[0].freeform_tags["Owner"] }
+  )
+
+  # Filter keys by display name and defined tags
+  # Expected display name format: VSAD-REGION-ENVIRONMENT
+  # i.e. GO0V-ASH-NonProd
+  kms_region = var.region_key == "iad" ? "ASH" : "PHX"
+  kms_key_id = [
+    for key in data.oci_kms_keys.primary.keys :
+    key.id if lower(key.defined_tags["Compartment-tags.VSAD"]) == lower(var.vsad)
+    && lower(regex("^(?P<vsad>[A-Z0-9]+)-(?P<region>ASH|PHX)-(?P<env>[A-Za-z]+)$", key.display_name).vsad) == lower(var.vsad)
+    && regex("^(?P<vsad>[A-Z0-9]+)-(?P<region>ASH|PHX)-(?P<env>[A-Za-z]+)$", key.display_name).region == local.kms_region
+    && lower(regex("^(?P<vsad>[A-Z0-9]+)-(?P<region>ASH|PHX)-(?P<env>[A-Za-z]+)$", key.display_name).env) == lower(var.environment)
+  ][0]
+
+  is_oke_coredns_addon_enabled = (
+    var.cluster_id != null ?
+    contains(data.oci_containerengine_addons.cluster[0].addons, "CoreDNS") :
+    null
+  )
+
+  ## OCI Resource Tags
+  tags = {
+
+    block_storage = {
+      defined = {
+        "Block-Storage-tags.Expiration"   = ""
+        "Block-Storage-tags.InstanceName" = local.cluster_name
+        "Block-Storage-tags.UserID"       = lower(local.user_id)
+        "Block-Storage-tags.VolumeGroup"  = ""
+        "Block-Storage-tags.VSAD"         = upper(var.vsad)
+        "Block-Storage-tags.Zone"         = local.zone
+        "OKE-tags.ClusterName"            = local.cluster_name
+      }
+      freeform = {
+        "ClusterName" = local.cluster_name
+      }
+    }
+
+    cluster = {
+      defined = null
+      freeform = {
+        "Owner"                = local.user_metadata.mail
+        "UserID"               = lower(local.user_id)
+        "VSAD"                 = upper(var.vsad)
+        "VAST"                 = local.vast_id
+        "UpdatedAt"            = formatdate("EEEE, DD-MMM-YYYY hh:mm:ss ZZZ", timestamp())
+        "UpdatedPipelineUrl"   = data.external.pipeline_metadata.result.pipeline_url
+        "UpdatedModuleVersion" = data.external.pipeline_metadata.result.oke_module_version
+      }
+    }
+
+    fss = {
+      defined = {
+        "FSS-tags.Environment" = var.environment
+        "FSS-tags.UserID"      = lower(local.user_id)
+        "FSS-tags.VSAD"        = upper(var.vsad)
+        "FSS-tags.Zone"        = local.zone
+        "OKE-tags.ClusterName" = local.cluster_name
+      }
+      freeform = {
+        "ClusterName" = local.cluster_name
+      }
+    }
+
+    load_balancer = {
+      defined = {
+        "Load-Balancer-tags.Environment" = var.environment
+        "Load-Balancer-tags.Owner"       = local.user_metadata.mail
+        "Load-Balancer-tags.VSAD"        = upper(var.vsad)
+        "Load-Balancer-tags.UserID"      = lower(local.user_id)
+        "Load-Balancer-tags.Zone"        = local.zone
+        "OKE-tags.ClusterName"           = local.cluster_name
+      }
+      freeform = {
+        "ClusterName" = local.cluster_name
+      }
+    }
+    node_pool = {
+      defined = null
+      freeform = {
+        "ClusterName" = local.cluster_name
+        "Owner"       = local.user_metadata.mail
+        "UserID"      = lower(local.user_id)
+        "VSAD"        = upper(var.vsad)
+      }
+    }
+
+    node = {
+      defined = {
+        "Compute-Tag.AppCustodian" = local.custodian_email
+        # (TODO cappni7) What should BornOn represent?
+        # CAS will create nodes dynamically
+        "Compute-Tag.BornOn"       = ""
+        "Compute-Tag.Environment"  = var.environment
+        "Compute-Tag.InstanceName" = local.cluster_name
+        "Compute-Tag.InstanceRole" = "App"
+        "Compute-Tag.LaunchedBy"   = local.user_metadata.mail
+        "Compute-Tag.Live"         = "Build"
+        "Compute-Tag.ManagedBy"    = local.user_metadata.mail
+        "Compute-Tag.Portfolio"    = local.portfolio
+        "Compute-Tag.RequestedBy"  = local.user_metadata.mail
+        "Compute-Tag.TenancyName"  = local.environment_config[var.environment].tenancy_name
+        "Compute-Tag.UserID"       = lower(local.user_id)
+        "Compute-Tag.VAST"         = local.vast_id
+        "Compute-Tag.VSAD"         = upper(var.vsad)
+        "Compute-Tag.Zone"         = local.zone
+        "OKE-tags.ClusterName"     = local.cluster_name
+      }
+      freeform = {
+        "ClusterName" = local.cluster_name
+      }
+    }
+
+    logging = {
+      defined = null
+      freeform = {
+        "Owner"  = local.user_metadata.mail
+        "UserID" = lower(local.user_id)
+        "VSAD"   = upper(var.vsad)
+        "VAST"   = local.vast_id
+      }
+    }
+  }
+}
+
+data "http" "user_metadata" {
+  count              = var.enable_whois_service_request ? 1 : 0
+  url                = "${local.whois_url}/${lower(local.user_id)}?format=json"
+  method             = "GET"
+  request_timeout_ms = 7000
+  retry {
+    attempts     = 5
+    max_delay_ms = 10000
+    min_delay_ms = 2000
+  }
+}
+
+data "http" "vast_services" {
+  count              = var.enable_vast_service_request ? 1 : 0
+  method             = "GET"
+  request_timeout_ms = 8000
+  url = join("", [
+    "https://vast-services.verizon.com/itapm/getapplicationdetails?outputtype=json&vsadid=",
+    lower(var.vsad)
+  ])
+  retry {
+    attempts     = 9
+    max_delay_ms = 60000
+    min_delay_ms = 15000
+  }
+}
+
+data "oci_containerengine_addons" "cluster" {
+  count      = var.cluster_id != null ? 1 : 0
+  cluster_id = var.cluster_id
+}
+
+data "oci_containerengine_clusters" "primary" {
+  count          = var.cluster_id != null ? 1 : 0
+  compartment_id = local.compartment_id
+  filter {
+    name   = "id"
+    values = [var.cluster_id]
+  }
+}
+
+data "oci_core_subnet" "node" {
+  subnet_id = local.network_config.node_subnet_id
+}
+
+data "oci_core_subnet" "api_endpoint" {
+  subnet_id = local.network_config.endpoint_subnet_id
+}
+
+data "oci_identity_compartments" "cluster" {
+  compartment_id            = local.environment_config[var.environment].root_compartment_id
+  compartment_id_in_subtree = true
+  name                      = local.compartment_name
+  lifecycle {
+    postcondition {
+      condition     = length(self.compartments) > 0
+      error_message = "Compartment not found for VSAD '${var.vsad}'."
+    }
+  }
+}
+
+data "oci_identity_regions" "primary" {
+  filter {
+    name   = "key"
+    values = [upper(var.region_key)]
+  }
+}
+
+data "oci_kms_vault" "primary" {
+  vault_id = local.environment_config[var.environment].regions[var.region_key]["kms_vault_id"]
+}
+
+data "oci_kms_keys" "primary" {
+  compartment_id      = local.compartment_id
+  management_endpoint = data.oci_kms_vault.primary.management_endpoint
+}
+
+data "external" "pipeline_metadata" {
+  program = ["python", "${path.module}/scripts/pipeline_metadata.py"]
+  query = {
+    path_root = path.root
+  }
+}
+
+
